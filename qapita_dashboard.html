@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qapita — Outbound Calling Efficiency Dashboard | Feb 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #F5F4F1;
+  font-family: 'DM Sans', sans-serif;
+  color: #1a1a1a;
+  line-height: 1.6;
+  padding: 32px 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.mono { font-family: 'JetBrains Mono', monospace; }
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding-top: 40px;
+  border-top: 2px solid #e0dfdc;
+  margin-top: 48px;
+  letter-spacing: -0.3px;
+}
+h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.subtitle {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 24px;
+  max-width: 700px;
+}
+.header-meta {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 32px;
+}
+.header-meta span { margin-right: 20px; }
+
+/* Cards */
+.card {
+  background: #fff;
+  border: 1px solid #e8e7e4;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.card-grid {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.card-grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.card-grid-3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+
+.stat-card {
+  background: #fff;
+  border: 1px solid #e8e7e4;
+  border-radius: 10px;
+  padding: 16px 18px;
+  text-align: center;
+}
+.stat-card .label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.stat-card .value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 28px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+.stat-card .sub {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+
+/* Insight box */
+.insight {
+  background: #FFFDF5;
+  border-left: 3px solid #E9C46A;
+  border-radius: 0 8px 8px 0;
+  padding: 14px 18px;
+  margin: 16px 0;
+  font-size: 14px;
+}
+.insight strong { color: #1a1a1a; }
+.insight .good { color: #2A9D8F; font-weight: 600; }
+.insight .bad { color: #E63946; font-weight: 600; }
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 12px 0;
+}
+th {
+  background: #F8F7F5;
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid #e0dfdc;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #666;
+  white-space: nowrap;
+}
+td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #f0efec;
+  vertical-align: middle;
+}
+tr:hover td { background: #FAFAF8; }
+.best { background: #E8F5E9 !important; color: #2E7D32; font-weight: 600; }
+.worst { background: #FFEBEE !important; color: #C62828; font-weight: 600; }
+
+/* Charts */
+.chart-container {
+  background: #fff;
+  border: 1px solid #e8e7e4;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 16px 0;
+  position: relative;
+}
+.chart-container canvas {
+  max-height: 400px;
+}
+
+/* Heatmap */
+.heatmap-grid {
+  display: grid;
+  gap: 2px;
+  margin: 12px 0;
+  overflow-x: auto;
+}
+.heatmap-cell {
+  width: 100%;
+  min-width: 22px;
+  height: 28px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: #fff;
+}
+.heatmap-label {
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  padding-right: 8px;
+}
+
+/* Scorecard */
+.score-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #f0efec;
+  position: relative;
+  overflow: hidden;
+}
+.score-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.score-green { background: #2A9D8F; }
+.score-amber { background: #E9C46A; }
+.score-red { background: #E63946; }
+
+/* Break log */
+.break-entry {
+  display: flex;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f5f4f2;
+  font-size: 12px;
+  align-items: center;
+}
+.break-entry .date { font-family: 'JetBrains Mono', monospace; width: 90px; color: #666; }
+.break-entry .time { font-family: 'JetBrains Mono', monospace; width: 120px; }
+.break-entry .dur {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  width: 60px;
+}
+.break-entry .dur.severe { color: #E63946; }
+.bad-day-badge {
+  background: #E63946;
+  color: #fff;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+/* Tabs for break log */
+.tab-container { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.tab-btn {
+  padding: 6px 14px;
+  border: 1px solid #e0dfdc;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.tab-btn:hover { background: #f5f4f2; }
+.tab-btn.active {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Radar chart */
+.radar-wrap {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* Footer */
+.footer {
+  margin-top: 60px;
+  padding: 20px 0;
+  border-top: 1px solid #e0dfdc;
+  font-size: 12px;
+  color: #999;
+}
+
+/* Rep insight cards */
+.rep-insight {
+  background: #fff;
+  border: 1px solid #e8e7e4;
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 12px;
+}
+.rep-insight .rep-name {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rep-insight .rep-name .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.rep-insight ul { padding-left: 18px; margin: 4px 0; font-size: 13px; }
+.rep-insight .good-text { color: #2A9D8F; }
+.rep-insight .bad-text { color: #C62828; }
+.rep-insight .action {
+  background: #F5F4F1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-top: 8px;
+  font-weight: 500;
+}
+
+/* Scorecard grid */
+.scorecard-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+.scorecard-card {
+  background: #fff;
+  border: 1px solid #e8e7e4;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+.scorecard-card .agent-name {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.scorecard-card .overall {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.metric-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+.metric-row .metric-label {
+  width: 55px;
+  text-align: right;
+  color: #888;
+  font-size: 10px;
+}
+.metric-row .score-bar {
+  flex: 1;
+  height: 6px;
+}
+
+/* Section label */
+.section-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #999;
+  display: block;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 768px) {
+  body { padding: 16px 12px; }
+  .scorecard-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+}
+</style>
+</head>
+<body>
+
+<h1>Qapita Outbound Calling Dashboard</h1>
+<div class="header-meta">
+  <span class="mono">Feb 2 – Feb 27, 2026</span>
+  <span>9 reps · 19 working days · 16714 total outbound calls</span>
+  <span>Target: 120 calls/day</span>
+</div>
+<p class="subtitle">Data from JustCall call logs. Timestamps are in Eastern Time. Calling windows: W1 (8 AM – 12 PM ET) and W2 (2 PM – 6 PM ET). Break threshold: 15 minutes. Ishika Dubey was on leave for 5 days (not ramping).</p>
+
+<!-- ============ SECTION 1 ============ -->
+<h2><span class="section-num">01</span>Where Does Each Rep Stand?</h2>
+<p class="subtitle">High-level performance snapshot. Avg calls/day, total calls placed, days worked in the period, and how often each rep hit the 120-call daily target.</p>
+
+<div class="card-grid card-grid-3" id="stat-cards"></div>
+
+<div class="chart-container">
+  <h3>Daily Outbound Calls by Rep</h3>
+  <p style="font-size:12px;color:#888;margin-bottom:8px;">Dashed line = 120-call target. Gaps indicate days off.</p>
+  <canvas id="dailyCallsChart" height="350"></canvas>
+</div>
+
+<div class="insight" id="insight1"></div>
+
+<!-- ============ SECTION 2 ============ -->
+<h2><span class="section-num">02</span>The Numbers, Side by Side</h2>
+<p class="subtitle">Every key metric for each rep in one table. Best values are green, worst are red. "In simple words" explains what each metric means for coaching.</p>
+
+<div class="card" style="overflow-x:auto;">
+  <table id="comparisonTable"></table>
+</div>
+
+<!-- ============ SECTION 3 ============ -->
+<h2><span class="section-num">03</span>Window 1 vs Window 2</h2>
+<p class="subtitle">W1 = 8 AM – 12 PM ET, W2 = 2 PM – 6 PM ET. Both windows are mandatory. W2 target: 40+ calls/day. Since this team works from India across two IST shifts, some reps naturally concentrate in one window.</p>
+
+<div class="chart-container">
+  <h3>Calls per Window (Daily Average)</h3>
+  <canvas id="w1w2Chart" height="300"></canvas>
+</div>
+
+<div class="card" style="overflow-x:auto;">
+  <table id="w1w2Table"></table>
+</div>
+
+<div class="insight" id="insight3"></div>
+
+<!-- ============ SECTION 4 ============ -->
+<h2><span class="section-num">04</span>Break Patterns</h2>
+<p class="subtitle"><strong>Most important section.</strong> A "break" is any gap &gt; 15 minutes between consecutive calls. This measures how long a rep was off the dialer. Breaks are bucketed: 15–20 min (minor), 20–45 min (significant), 45+ min (critical).</p>
+
+<div class="card-grid card-grid-3" id="break-cards"></div>
+
+<div class="chart-container">
+  <h3>Break Buckets by Rep</h3>
+  <p style="font-size:12px;color:#888;margin-bottom:8px;">Grouped by severity: 15–20 min, 20–45 min, and 45+ min breaks.</p>
+  <canvas id="breakBucketChart" height="300"></canvas>
+</div>
+
+<div class="chart-container">
+  <h3>Cumulative Excess Break Time (minutes over 15-min threshold)</h3>
+  <p style="font-size:12px;color:#888;margin-bottom:8px;">Running total of break minutes above the 15-min policy limit. Steeper slopes = more break time accumulating.</p>
+  <canvas id="cumulativeBreakChart" height="300"></canvas>
+</div>
+
+<h3 style="margin-top:20px;">Break Log (breaks &gt; 20 min)</h3>
+<p style="font-size:12px;color:#888;margin-bottom:12px;">Every break exceeding 20 minutes, listed per rep. Days with 2+ excessive breaks are flagged with a red badge.</p>
+
+<div class="tab-container" id="breakTabs"></div>
+<div id="breakPanels"></div>
+
+<div class="insight" id="insight4"></div>
+
+<!-- ============ SECTION 5 ============ -->
+<h2><span class="section-num">05</span>When Are Calls Happening?</h2>
+<p class="subtitle">Heatmap showing average calls per 30-minute slot across the full day. Darker = more calls. W1 zone (8–12 ET) and W2 zone (14–18 ET) are marked. Calls outside these windows are also visible.</p>
+
+<div class="card" style="overflow-x:auto;">
+  <div id="heatmapContainer"></div>
+</div>
+
+<div class="insight" id="insight5"></div>
+
+<!-- ============ SECTION 6 ============ -->
+<h2><span class="section-num">06</span>Realistic Capacity</h2>
+<p class="subtitle">Based on each rep's natural pacing (median seconds between calls, excluding breaks), how many calls could they make in ~5 hours of actual dialing? This is the theoretical ceiling if breaks were minimized.</p>
+
+<div class="card" style="overflow-x:auto;">
+  <table id="capacityTable"></table>
+</div>
+
+<div class="insight" id="insight6"></div>
+
+<!-- ============ SECTION 7 ============ -->
+<h2><span class="section-num">07</span>What the Data Says About Each Rep</h2>
+<p class="subtitle">Per-rep coaching notes based on the numbers. Green = strengths, red = areas for improvement. Each note includes a concrete recommendation.</p>
+
+<div id="repInsights"></div>
+
+<!-- ============ SCORECARD ============ -->
+<h2><span class="section-num">08</span>Efficiency Scorecard</h2>
+<p class="subtitle">6 weighted metrics: Hitting Target (20%), Daily Output (20%), Break Efficiency (15%), W2 Output (15%), Consistency (15%), Trend (15%). Green ≥ 70, amber 45–69, red &lt; 45. Ordered best → worst.</p>
+
+<div class="scorecard-grid" id="scorecardGrid"></div>
+
+<!-- ============ EXPERIMENTAL: RADAR ============ -->
+<h2><span class="section-num">09</span>Strength &amp; Weakness Map <span style="background:#E9C46A;color:#1a1a1a;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;vertical-align:middle;">EXPERIMENT</span></h2>
+<p class="subtitle">Radar chart with the same 6 scorecard metrics. Larger area = stronger overall. Shape reveals where each rep excels or falls short.</p>
+
+<div class="chart-container radar-wrap">
+  <canvas id="radarChart" height="400"></canvas>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <strong>Data source:</strong> JustCall Call Logs export, Feb 1–28 2026 (data covers Feb 2–27, 19 working days)<br>
+  <strong>Exclusions:</strong> Inbound calls excluded. Ishika Dubey was on leave for 5 days.<br>
+  <strong>Break policy:</strong> Any gap &gt; 15 min between consecutive calls is flagged as an excessive break.<br>
+  <strong>Generated:</strong> Qapita Outbound Calling Dashboard · Built with Chart.js
+</div>
+
+<script>
+const D = {"colors": {"Harsh Singh": "#E63946", "ISHITA PATNAIK": "#457B9D", "Ishika Dubey": "#2A9D8F", "Mayank Rajput": "#E9C46A", "Rajkumar Mallick": "#F4A261", "Ranita Tripathy": "#6A4C93", "Sankalp Rout": "#1982C4", "Shreya Patra": "#FF6B6B", "Smriti Mishra": "#06D6A0"}, "agents": ["Harsh Singh", "ISHITA PATNAIK", "Ishika Dubey", "Mayank Rajput", "Rajkumar Mallick", "Ranita Tripathy", "Sankalp Rout", "Shreya Patra", "Smriti Mishra"], "dates": ["2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27"], "target": 120, "stats": {"Harsh Singh": {"days_worked": 17, "total_calls": 1927, "avg_calls": 113.4, "days_hit": 8, "target_hit_rate": 47.1}, "ISHITA PATNAIK": {"days_worked": 18, "total_calls": 1941, "avg_calls": 107.8, "days_hit": 7, "target_hit_rate": 38.9}, "Ishika Dubey": {"days_worked": 14, "total_calls": 1435, "avg_calls": 102.5, "days_hit": 8, "target_hit_rate": 57.1}, "Mayank Rajput": {"days_worked": 18, "total_calls": 1978, "avg_calls": 109.9, "days_hit": 10, "target_hit_rate": 55.6}, "Rajkumar Mallick": {"days_worked": 19, "total_calls": 1916, "avg_calls": 100.8, "days_hit": 7, "target_hit_rate": 36.8}, "Ranita Tripathy": {"days_worked": 18, "total_calls": 2189, "avg_calls": 121.6, "days_hit": 11, "target_hit_rate": 61.1}, "Sankalp Rout": {"days_worked": 19, "total_calls": 1755, "avg_calls": 92.4, "days_hit": 2, "target_hit_rate": 10.5}, "Shreya Patra": {"days_worked": 18, "total_calls": 1572, "avg_calls": 87.3, "days_hit": 3, "target_hit_rate": 16.7}, "Smriti Mishra": {"days_worked": 18, "total_calls": 2001, "avg_calls": 111.2, "days_hit": 7, "target_hit_rate": 38.9}}, "daily_calls": {"Harsh Singh": [100, 95, 120, 116, null, 101, 102, 101, 101, 97, null, 126, 125, 126, 122, 116, 129, 125, 125], "ISHITA PATNAIK": [120, 98, null, 121, 60, 110, 99, 100, 99, 92, 144, 130, 122, 96, 105, 104, 123, 126, 92], "Ishika Dubey": [106, 44, 125, 125, null, 126, 126, 107, 104, 14, 140, 132, 137, 131, 18, null, null, null, null], "Mayank Rajput": [134, 81, 47, 154, 104, 50, 66, 106, 80, 123, 126, 132, null, 125, 133, 103, 148, 125, 141], "Rajkumar Mallick": [119, 119, 80, 120, 1, 57, 104, 79, 99, 102, 143, 130, 121, 132, 70, 108, 126, 125, 81], "Ranita Tripathy": [130, 50, null, 130, 101, 104, 113, 113, 115, 115, 126, 150, 150, 140, 140, 125, 127, 130, 130], "Sankalp Rout": [104, 99, 101, 100, 74, 100, 85, 49, 99, 102, 124, 103, 84, 78, 119, 45, 133, 106, 50], "Shreya Patra": [110, 26, 80, 117, 113, 100, 83, 100, 60, 5, 125, 72, 105, 150, null, 70, 125, 101, 30], "Smriti Mishra": [126, 118, 104, 104, 45, 102, 111, 110, 102, 86, null, 130, 121, 131, 129, 106, 131, 134, 111]}, "comparison": {"Harsh Singh": {"avg_calls": 113.4, "target_hit_rate": 47.1, "median_pacing": 40.0, "avg_break_per_day": 279.8, "w2_avg": 8.4, "w2_days_skipped": 9, "w2_days_active": 1, "connect_rate": 69.2, "last_week_avg": 123.4, "days_worked": 17}, "ISHITA PATNAIK": {"avg_calls": 107.8, "target_hit_rate": 38.9, "median_pacing": 39.0, "avg_break_per_day": 150.6, "w2_avg": 87.3, "w2_days_skipped": 0, "w2_days_active": 18, "connect_rate": 57.1, "last_week_avg": 110.0, "days_worked": 18}, "Ishika Dubey": {"avg_calls": 102.5, "target_hit_rate": 57.1, "median_pacing": 57.0, "avg_break_per_day": 224.3, "w2_avg": 57.5, "w2_days_skipped": 3, "w2_days_active": 10, "connect_rate": 84.9, "last_week_avg": 111.6, "days_worked": 14}, "Mayank Rajput": {"avg_calls": 109.9, "target_hit_rate": 55.6, "median_pacing": 57.0, "avg_break_per_day": 201.5, "w2_avg": 96.3, "w2_days_skipped": 0, "w2_days_active": 18, "connect_rate": 82.9, "last_week_avg": 130.0, "days_worked": 18}, "Rajkumar Mallick": {"avg_calls": 100.8, "target_hit_rate": 36.8, "median_pacing": 74.0, "avg_break_per_day": 264.1, "w2_avg": 65.3, "w2_days_skipped": 1, "w2_days_active": 17, "connect_rate": 86.1, "last_week_avg": 102.0, "days_worked": 19}, "Ranita Tripathy": {"avg_calls": 121.6, "target_hit_rate": 61.1, "median_pacing": 93.0, "avg_break_per_day": 204.8, "w2_avg": 40.3, "w2_days_skipped": 1, "w2_days_active": 9, "connect_rate": 80.2, "last_week_avg": 130.4, "days_worked": 18}, "Sankalp Rout": {"avg_calls": 92.4, "target_hit_rate": 10.5, "median_pacing": 46.0, "avg_break_per_day": 276.9, "w2_avg": 64.4, "w2_days_skipped": 0, "w2_days_active": 16, "connect_rate": 76.9, "last_week_avg": 90.6, "days_worked": 19}, "Shreya Patra": {"avg_calls": 87.3, "target_hit_rate": 16.7, "median_pacing": 37.0, "avg_break_per_day": 221.0, "w2_avg": 62.9, "w2_days_skipped": 2, "w2_days_active": 14, "connect_rate": 62.3, "last_week_avg": 95.2, "days_worked": 18}, "Smriti Mishra": {"avg_calls": 111.2, "target_hit_rate": 38.9, "median_pacing": 44.0, "avg_break_per_day": 237.6, "w2_avg": 102.8, "w2_days_skipped": 0, "w2_days_active": 18, "connect_rate": 70.3, "last_week_avg": 122.2, "days_worked": 18}}, "w1w2": {"Harsh Singh": {"w1_daily": 63.4, "w2_daily": 8.4, "expected_w2": 63.4, "gap": -54.9, "w2_active_days": 1, "days_worked": 17}, "ISHITA PATNAIK": {"w1_daily": 0.4, "w2_daily": 87.3, "expected_w2": 0.4, "gap": 86.9, "w2_active_days": 18, "days_worked": 18}, "Ishika Dubey": {"w1_daily": 22.2, "w2_daily": 57.5, "expected_w2": 22.2, "gap": 35.3, "w2_active_days": 10, "days_worked": 14}, "Mayank Rajput": {"w1_daily": 0.8, "w2_daily": 96.3, "expected_w2": 0.8, "gap": 95.5, "w2_active_days": 18, "days_worked": 18}, "Rajkumar Mallick": {"w1_daily": 13.1, "w2_daily": 65.3, "expected_w2": 13.1, "gap": 52.2, "w2_active_days": 17, "days_worked": 19}, "Ranita Tripathy": {"w1_daily": 39.2, "w2_daily": 40.3, "expected_w2": 39.2, "gap": 1.1, "w2_active_days": 9, "days_worked": 18}, "Sankalp Rout": {"w1_daily": 4.9, "w2_daily": 64.4, "expected_w2": 4.9, "gap": 59.5, "w2_active_days": 16, "days_worked": 19}, "Shreya Patra": {"w1_daily": 4.2, "w2_daily": 62.9, "expected_w2": 4.2, "gap": 58.7, "w2_active_days": 14, "days_worked": 18}, "Smriti Mishra": {"w1_daily": 0.8, "w2_daily": 102.8, "expected_w2": 0.8, "gap": 101.9, "w2_active_days": 18, "days_worked": 18}}, "breaks": {"Harsh Singh": {"total_breaks": 70, "under_20": 5, "bw_20_45": 27, "over_45": 38, "calls_lost_per_day": 327.0, "total_excess_min": 3706.5}, "ISHITA PATNAIK": {"total_breaks": 29, "under_20": 4, "bw_20_45": 6, "over_45": 19, "calls_lost_per_day": 194.5, "total_excess_min": 2275.5}, "Ishika Dubey": {"total_breaks": 36, "under_20": 1, "bw_20_45": 14, "over_45": 21, "calls_lost_per_day": 195.5, "total_excess_min": 2599.9}, "Mayank Rajput": {"total_breaks": 30, "under_20": 9, "bw_20_45": 7, "over_45": 14, "calls_lost_per_day": 185.7, "total_excess_min": 3176.3}, "Rajkumar Mallick": {"total_breaks": 76, "under_20": 14, "bw_20_45": 22, "over_45": 40, "calls_lost_per_day": 165.5, "total_excess_min": 3878.5}, "Ranita Tripathy": {"total_breaks": 80, "under_20": 30, "bw_20_45": 27, "over_45": 23, "calls_lost_per_day": 89.1, "total_excess_min": 2487.0}, "Sankalp Rout": {"total_breaks": 71, "under_20": 20, "bw_20_45": 24, "over_45": 27, "calls_lost_per_day": 288.1, "total_excess_min": 4197.1}, "Shreya Patra": {"total_breaks": 44, "under_20": 10, "bw_20_45": 21, "over_45": 13, "calls_lost_per_day": 299.0, "total_excess_min": 3318.7}, "Smriti Mishra": {"total_breaks": 39, "under_20": 10, "bw_20_45": 12, "over_45": 17, "calls_lost_per_day": 279.6, "total_excess_min": 3691.2}}, "break_log": {"Harsh Singh": [{"date": "2026-02-02", "start": "09:33", "end": "10:04", "duration": 31.0}, {"date": "2026-02-02", "start": "10:34", "end": "11:03", "duration": 28.9}, {"date": "2026-02-02", "start": "11:25", "end": "12:19", "duration": 53.4}, {"date": "2026-02-02", "start": "12:29", "end": "13:13", "duration": 43.6}, {"date": "2026-02-03", "start": "09:45", "end": "10:13", "duration": 27.6}, {"date": "2026-02-03", "start": "10:27", "end": "10:51", "duration": 24.4}, {"date": "2026-02-03", "start": "11:19", "end": "13:06", "duration": 107.0}, {"date": "2026-02-04", "start": "06:45", "end": "08:29", "duration": 103.9}, {"date": "2026-02-04", "start": "09:24", "end": "10:23", "duration": 58.6}, {"date": "2026-02-04", "start": "10:23", "end": "11:16", "duration": 53.2}, {"date": "2026-02-04", "start": "11:36", "end": "12:49", "duration": 72.9}, {"date": "2026-02-04", "start": "13:03", "end": "13:26", "duration": 22.9}, {"date": "2026-02-05", "start": "09:16", "end": "10:36", "duration": 79.4}, {"date": "2026-02-05", "start": "10:55", "end": "11:21", "duration": 25.6}, {"date": "2026-02-05", "start": "11:41", "end": "12:33", "duration": 52.1}, {"date": "2026-02-05", "start": "12:49", "end": "14:38", "duration": 108.9}, {"date": "2026-02-09", "start": "07:25", "end": "09:02", "duration": 97.8}, {"date": "2026-02-09", "start": "09:15", "end": "10:25", "duration": 70.2}, {"date": "2026-02-09", "start": "10:38", "end": "11:30", "duration": 52.0}, {"date": "2026-02-09", "start": "11:50", "end": "12:19", "duration": 28.6}, {"date": "2026-02-09", "start": "12:38", "end": "12:56", "duration": 17.5}, {"date": "2026-02-10", "start": "06:08", "end": "07:10", "duration": 61.7}, {"date": "2026-02-10", "start": "07:14", "end": "08:44", "duration": 89.8}, {"date": "2026-02-10", "start": "08:59", "end": "09:21", "duration": 22.3}, {"date": "2026-02-10", "start": "09:29", "end": "11:01", "duration": 91.8}, {"date": "2026-02-10", "start": "11:04", "end": "12:45", "duration": 100.5}, {"date": "2026-02-10", "start": "12:55", "end": "14:16", "duration": 80.8}, {"date": "2026-02-10", "start": "14:29", "end": "15:13", "duration": 43.5}, {"date": "2026-02-11", "start": "03:45", "end": "08:59", "duration": 313.8}, {"date": "2026-02-11", "start": "09:30", "end": "10:37", "duration": 67.5}, {"date": "2026-02-11", "start": "10:52", "end": "11:27", "duration": 34.7}, {"date": "2026-02-11", "start": "11:41", "end": "12:29", "duration": 47.6}, {"date": "2026-02-12", "start": "06:15", "end": "10:32", "duration": 256.8}, {"date": "2026-02-12", "start": "10:47", "end": "11:15", "duration": 27.4}, {"date": "2026-02-12", "start": "11:33", "end": "12:21", "duration": 48.0}, {"date": "2026-02-12", "start": "12:44", "end": "13:45", "duration": 61.6}, {"date": "2026-02-13", "start": "06:08", "end": "06:31", "duration": 22.3}, {"date": "2026-02-13", "start": "06:46", "end": "09:34", "duration": 167.9}, {"date": "2026-02-13", "start": "10:28", "end": "14:16", "duration": 228.3}, {"date": "2026-02-18", "start": "08:52", "end": "11:44", "duration": 172.2}, {"date": "2026-02-18", "start": "12:24", "end": "12:39", "duration": 15.4}, {"date": "2026-02-19", "start": "06:02", "end": "08:27", "duration": 145.5}, {"date": "2026-02-19", "start": "08:51", "end": "10:37", "duration": 106.3}, {"date": "2026-02-19", "start": "10:52", "end": "11:34", "duration": 41.6}, {"date": "2026-02-19", "start": "12:44", "end": "13:17", "duration": 33.0}, {"date": "2026-02-20", "start": "06:36", "end": "09:54", "duration": 198.6}, {"date": "2026-02-20", "start": "10:28", "end": "11:06", "duration": 38.2}, {"date": "2026-02-20", "start": "11:41", "end": "12:05", "duration": 24.1}, {"date": "2026-02-23", "start": "08:39", "end": "09:48", "duration": 68.5}, {"date": "2026-02-23", "start": "09:59", "end": "10:23", "duration": 23.5}, {"date": "2026-02-23", "start": "10:53", "end": "11:15", "duration": 21.5}, {"date": "2026-02-23", "start": "11:42", "end": "12:21", "duration": 38.4}, {"date": "2026-02-23", "start": "12:48", "end": "15:03", "duration": 135.8}, {"date": "2026-02-24", "start": "11:28", "end": "11:58", "duration": 29.9}, {"date": "2026-02-24", "start": "12:29", "end": "13:08", "duration": 38.9}, {"date": "2026-02-24", "start": "13:36", "end": "14:36", "duration": 60.2}, {"date": "2026-02-25", "start": "10:32", "end": "11:35", "duration": 62.8}, {"date": "2026-02-25", "start": "11:54", "end": "12:24", "duration": 30.1}, {"date": "2026-02-25", "start": "12:54", "end": "13:15", "duration": 21.3}, {"date": "2026-02-25", "start": "13:30", "end": "13:56", "duration": 26.0}, {"date": "2026-02-26", "start": "09:28", "end": "10:39", "duration": 70.8}, {"date": "2026-02-26", "start": "10:54", "end": "11:15", "duration": 21.5}, {"date": "2026-02-26", "start": "11:43", "end": "12:27", "duration": 44.1}, {"date": "2026-02-26", "start": "12:46", "end": "13:02", "duration": 15.5}, {"date": "2026-02-27", "start": "05:45", "end": "06:03", "duration": 17.9}, {"date": "2026-02-27", "start": "06:15", "end": "08:11", "duration": 115.3}, {"date": "2026-02-27", "start": "08:34", "end": "09:51", "duration": 77.0}, {"date": "2026-02-27", "start": "10:03", "end": "11:09", "duration": 66.2}, {"date": "2026-02-27", "start": "11:37", "end": "12:30", "duration": 52.7}, {"date": "2026-02-27", "start": "12:48", "end": "13:06", "duration": 17.9}], "ISHITA PATNAIK": [{"date": "2026-02-02", "start": "12:29", "end": "13:30", "duration": 61.5}, {"date": "2026-02-02", "start": "13:52", "end": "15:07", "duration": 75.0}, {"date": "2026-02-03", "start": "06:18", "end": "13:41", "duration": 443.3}, {"date": "2026-02-03", "start": "13:43", "end": "14:39", "duration": 55.9}, {"date": "2026-02-03", "start": "15:03", "end": "15:22", "duration": 18.7}, {"date": "2026-02-03", "start": "15:52", "end": "16:45", "duration": 53.3}, {"date": "2026-02-05", "start": "12:37", "end": "15:24", "duration": 166.7}, {"date": "2026-02-06", "start": "15:31", "end": "15:54", "duration": 23.6}, {"date": "2026-02-09", "start": "12:24", "end": "14:58", "duration": 154.6}, {"date": "2026-02-10", "start": "11:18", "end": "14:17", "duration": 178.7}, {"date": "2026-02-10", "start": "14:49", "end": "15:36", "duration": 47.5}, {"date": "2026-02-10", "start": "16:13", "end": "16:58", "duration": 44.5}, {"date": "2026-02-11", "start": "13:28", "end": "15:47", "duration": 138.9}, {"date": "2026-02-11", "start": "16:29", "end": "17:00", "duration": 30.6}, {"date": "2026-02-12", "start": "12:23", "end": "15:17", "duration": 174.3}, {"date": "2026-02-12", "start": "15:36", "end": "16:24", "duration": 48.0}, {"date": "2026-02-13", "start": "15:30", "end": "16:08", "duration": 37.3}, {"date": "2026-02-17", "start": "07:51", "end": "12:49", "duration": 298.1}, {"date": "2026-02-17", "start": "13:18", "end": "15:27", "duration": 129.1}, {"date": "2026-02-17", "start": "16:34", "end": "18:01", "duration": 87.2}, {"date": "2026-02-18", "start": "13:36", "end": "15:44", "duration": 127.8}, {"date": "2026-02-19", "start": "14:42", "end": "16:11", "duration": 89.2}, {"date": "2026-02-20", "start": "15:19", "end": "16:23", "duration": 63.5}, {"date": "2026-02-23", "start": "13:53", "end": "14:14", "duration": 20.5}, {"date": "2026-02-23", "start": "14:42", "end": "14:58", "duration": 15.9}, {"date": "2026-02-24", "start": "14:12", "end": "15:05", "duration": 52.5}, {"date": "2026-02-24", "start": "15:25", "end": "15:44", "duration": 18.8}, {"date": "2026-02-25", "start": "14:28", "end": "14:47", "duration": 19.6}, {"date": "2026-02-26", "start": "15:17", "end": "15:53", "duration": 35.9}], "Ishika Dubey": [{"date": "2026-02-02", "start": "09:36", "end": "10:39", "duration": 63.6}, {"date": "2026-02-02", "start": "11:14", "end": "13:22", "duration": 128.8}, {"date": "2026-02-02", "start": "13:28", "end": "14:44", "duration": 76.1}, {"date": "2026-02-02", "start": "15:33", "end": "15:52", "duration": 18.8}, {"date": "2026-02-03", "start": "10:45", "end": "12:23", "duration": 98.0}, {"date": "2026-02-04", "start": "06:35", "end": "08:45", "duration": 130.5}, {"date": "2026-02-04", "start": "09:23", "end": "10:36", "duration": 73.0}, {"date": "2026-02-04", "start": "11:08", "end": "14:19", "duration": 191.5}, {"date": "2026-02-04", "start": "15:17", "end": "15:41", "duration": 23.6}, {"date": "2026-02-05", "start": "13:06", "end": "13:48", "duration": 42.5}, {"date": "2026-02-05", "start": "14:29", "end": "14:52", "duration": 23.7}, {"date": "2026-02-05", "start": "15:13", "end": "15:38", "duration": 24.4}, {"date": "2026-02-05", "start": "16:09", "end": "16:38", "duration": 28.8}, {"date": "2026-02-09", "start": "10:41", "end": "11:13", "duration": 31.8}, {"date": "2026-02-09", "start": "11:49", "end": "14:36", "duration": 166.4}, {"date": "2026-02-09", "start": "15:31", "end": "16:11", "duration": 40.0}, {"date": "2026-02-10", "start": "06:13", "end": "08:49", "duration": 155.8}, {"date": "2026-02-10", "start": "09:01", "end": "10:57", "duration": 116.3}, {"date": "2026-02-10", "start": "11:21", "end": "11:45", "duration": 23.6}, {"date": "2026-02-10", "start": "11:53", "end": "14:37", "duration": 163.9}, {"date": "2026-02-10", "start": "15:39", "end": "16:01", "duration": 22.7}, {"date": "2026-02-11", "start": "09:27", "end": "11:03", "duration": 96.4}, {"date": "2026-02-11", "start": "11:34", "end": "14:40", "duration": 186.0}, {"date": "2026-02-12", "start": "13:45", "end": "14:55", "duration": 70.2}, {"date": "2026-02-12", "start": "15:30", "end": "16:08", "duration": 38.2}, {"date": "2026-02-12", "start": "16:31", "end": "16:55", "duration": 23.4}, {"date": "2026-02-17", "start": "08:04", "end": "09:49", "duration": 104.6}, {"date": "2026-02-17", "start": "09:49", "end": "11:56", "duration": 127.2}, {"date": "2026-02-17", "start": "12:55", "end": "14:34", "duration": 98.3}, {"date": "2026-02-17", "start": "15:23", "end": "16:05", "duration": 42.8}, {"date": "2026-02-17", "start": "16:33", "end": "17:02", "duration": 29.2}, {"date": "2026-02-18", "start": "12:47", "end": "14:31", "duration": 104.4}, {"date": "2026-02-18", "start": "15:29", "end": "16:01", "duration": 32.2}, {"date": "2026-02-19", "start": "05:57", "end": "12:49", "duration": 411.9}, {"date": "2026-02-19", "start": "14:05", "end": "14:53", "duration": 48.1}, {"date": "2026-02-20", "start": "14:12", "end": "15:35", "duration": 83.2}], "Mayank Rajput": [{"date": "2026-02-02", "start": "15:07", "end": "15:33", "duration": 26.0}, {"date": "2026-02-02", "start": "16:05", "end": "16:24", "duration": 18.6}, {"date": "2026-02-02", "start": "16:53", "end": "17:09", "duration": 16.6}, {"date": "2026-02-03", "start": "16:00", "end": "16:36", "duration": 35.7}, {"date": "2026-02-05", "start": "16:13", "end": "16:41", "duration": 27.6}, {"date": "2026-02-09", "start": "15:34", "end": "15:50", "duration": 15.9}, {"date": "2026-02-10", "start": "12:12", "end": "15:18", "duration": 186.2}, {"date": "2026-02-11", "start": "16:49", "end": "17:05", "duration": 16.2}, {"date": "2026-02-11", "start": "17:06", "end": "18:14", "duration": 68.1}, {"date": "2026-02-13", "start": "07:12", "end": "15:05", "duration": 473.8}, {"date": "2026-02-13", "start": "15:45", "end": "16:20", "duration": 34.7}, {"date": "2026-02-17", "start": "08:03", "end": "14:19", "duration": 375.8}, {"date": "2026-02-17", "start": "15:00", "end": "15:20", "duration": 19.4}, {"date": "2026-02-17", "start": "17:12", "end": "18:05", "duration": 53.4}, {"date": "2026-02-18", "start": "18:10", "end": "18:57", "duration": 47.6}, {"date": "2026-02-20", "start": "00:56", "end": "05:52", "duration": 296.5}, {"date": "2026-02-20", "start": "06:06", "end": "06:55", "duration": 48.5}, {"date": "2026-02-20", "start": "07:27", "end": "12:23", "duration": 296.4}, {"date": "2026-02-20", "start": "13:04", "end": "14:31", "duration": 87.5}, {"date": "2026-02-20", "start": "14:54", "end": "15:10", "duration": 16.1}, {"date": "2026-02-20", "start": "16:30", "end": "17:09", "duration": 38.9}, {"date": "2026-02-24", "start": "16:00", "end": "16:18", "duration": 17.9}, {"date": "2026-02-24", "start": "17:00", "end": "17:19", "duration": 18.9}, {"date": "2026-02-25", "start": "02:14", "end": "14:53", "duration": 758.5}, {"date": "2026-02-25", "start": "15:39", "end": "16:12", "duration": 32.5}, {"date": "2026-02-26", "start": "05:40", "end": "07:03", "duration": 82.9}, {"date": "2026-02-26", "start": "07:03", "end": "09:11", "duration": 128.4}, {"date": "2026-02-26", "start": "09:42", "end": "15:33", "duration": 350.9}, {"date": "2026-02-27", "start": "15:34", "end": "15:49", "duration": 15.6}, {"date": "2026-02-27", "start": "16:43", "end": "17:05", "duration": 21.2}], "Rajkumar Mallick": [{"date": "2026-02-02", "start": "10:07", "end": "12:05", "duration": 118.5}, {"date": "2026-02-02", "start": "12:26", "end": "12:41", "duration": 15.3}, {"date": "2026-02-02", "start": "12:54", "end": "13:53", "duration": 59.1}, {"date": "2026-02-02", "start": "14:23", "end": "14:42", "duration": 19.1}, {"date": "2026-02-02", "start": "15:02", "end": "15:19", "duration": 16.9}, {"date": "2026-02-03", "start": "11:31", "end": "12:38", "duration": 67.3}, {"date": "2026-02-03", "start": "13:17", "end": "13:37", "duration": 20.0}, {"date": "2026-02-03", "start": "14:21", "end": "15:20", "duration": 58.3}, {"date": "2026-02-03", "start": "15:27", "end": "16:02", "duration": 35.3}, {"date": "2026-02-03", "start": "16:23", "end": "17:15", "duration": 52.6}, {"date": "2026-02-04", "start": "11:34", "end": "12:15", "duration": 41.3}, {"date": "2026-02-04", "start": "12:27", "end": "12:49", "duration": 22.1}, {"date": "2026-02-04", "start": "13:08", "end": "14:17", "duration": 69.9}, {"date": "2026-02-04", "start": "15:14", "end": "15:29", "duration": 15.2}, {"date": "2026-02-04", "start": "15:29", "end": "16:30", "duration": 60.3}, {"date": "2026-02-04", "start": "16:54", "end": "17:17", "duration": 22.7}, {"date": "2026-02-05", "start": "12:04", "end": "12:48", "duration": 44.3}, {"date": "2026-02-05", "start": "14:09", "end": "14:24", "duration": 15.2}, {"date": "2026-02-05", "start": "14:40", "end": "15:28", "duration": 47.5}, {"date": "2026-02-05", "start": "16:22", "end": "17:12", "duration": 49.9}, {"date": "2026-02-09", "start": "11:44", "end": "14:03", "duration": 138.9}, {"date": "2026-02-09", "start": "14:07", "end": "14:28", "duration": 20.7}, {"date": "2026-02-09", "start": "14:33", "end": "14:54", "duration": 20.3}, {"date": "2026-02-09", "start": "15:29", "end": "15:53", "duration": 24.0}, {"date": "2026-02-10", "start": "12:39", "end": "14:48", "duration": 128.9}, {"date": "2026-02-10", "start": "15:54", "end": "16:25", "duration": 30.6}, {"date": "2026-02-11", "start": "09:06", "end": "11:41", "duration": 155.7}, {"date": "2026-02-11", "start": "11:51", "end": "12:55", "duration": 63.8}, {"date": "2026-02-11", "start": "13:29", "end": "16:00", "duration": 150.7}, {"date": "2026-02-12", "start": "09:29", "end": "12:24", "duration": 174.8}, {"date": "2026-02-12", "start": "12:57", "end": "13:15", "duration": 18.0}, {"date": "2026-02-12", "start": "13:41", "end": "14:29", "duration": 48.0}, {"date": "2026-02-12", "start": "15:06", "end": "15:23", "duration": 16.9}, {"date": "2026-02-12", "start": "16:23", "end": "16:58", "duration": 34.9}, {"date": "2026-02-13", "start": "06:18", "end": "09:28", "duration": 190.2}, {"date": "2026-02-13", "start": "09:28", "end": "11:29", "duration": 121.5}, {"date": "2026-02-13", "start": "11:41", "end": "12:05", "duration": 24.2}, {"date": "2026-02-13", "start": "12:05", "end": "13:25", "duration": 80.0}, {"date": "2026-02-13", "start": "13:26", "end": "14:12", "duration": 45.4}, {"date": "2026-02-13", "start": "16:16", "end": "17:08", "duration": 52.3}, {"date": "2026-02-17", "start": "07:48", "end": "08:05", "duration": 17.4}, {"date": "2026-02-17", "start": "08:05", "end": "10:02", "duration": 116.3}, {"date": "2026-02-17", "start": "10:06", "end": "11:06", "duration": 60.3}, {"date": "2026-02-17", "start": "12:21", "end": "13:21", "duration": 60.2}, {"date": "2026-02-17", "start": "13:23", "end": "14:39", "duration": 75.8}, {"date": "2026-02-17", "start": "16:45", "end": "17:01", "duration": 15.8}, {"date": "2026-02-18", "start": "09:34", "end": "12:45", "duration": 190.3}, {"date": "2026-02-18", "start": "12:45", "end": "13:01", "duration": 16.6}, {"date": "2026-02-18", "start": "13:08", "end": "13:58", "duration": 49.8}, {"date": "2026-02-18", "start": "14:37", "end": "15:06", "duration": 29.1}, {"date": "2026-02-19", "start": "06:17", "end": "11:39", "duration": 321.6}, {"date": "2026-02-19", "start": "13:05", "end": "14:42", "duration": 97.0}, {"date": "2026-02-19", "start": "14:43", "end": "15:15", "duration": 31.8}, {"date": "2026-02-19", "start": "16:37", "end": "17:00", "duration": 22.2}, {"date": "2026-02-20", "start": "08:56", "end": "11:53", "duration": 177.7}, {"date": "2026-02-20", "start": "12:26", "end": "12:54", "duration": 27.5}, {"date": "2026-02-20", "start": "13:21", "end": "14:46", "duration": 84.8}, {"date": "2026-02-20", "start": "16:09", "end": "16:52", "duration": 43.5}, {"date": "2026-02-23", "start": "11:03", "end": "12:04", "duration": 61.3}, {"date": "2026-02-23", "start": "13:15", "end": "13:59", "duration": 44.1}, {"date": "2026-02-23", "start": "14:07", "end": "15:11", "duration": 64.1}, {"date": "2026-02-24", "start": "12:16", "end": "13:46", "duration": 89.8}, {"date": "2026-02-24", "start": "14:43", "end": "15:24", "duration": 41.3}, {"date": "2026-02-24", "start": "16:22", "end": "16:41", "duration": 19.3}, {"date": "2026-02-24", "start": "16:45", "end": "17:02", "duration": 17.0}, {"date": "2026-02-25", "start": "07:49", "end": "11:52", "duration": 242.9}, {"date": "2026-02-25", "start": "12:19", "end": "14:29", "duration": 130.4}, {"date": "2026-02-25", "start": "14:29", "end": "14:56", "duration": 27.1}, {"date": "2026-02-26", "start": "09:06", "end": "09:27", "duration": 20.6}, {"date": "2026-02-26", "start": "09:42", "end": "11:45", "duration": 122.4}, {"date": "2026-02-26", "start": "12:49", "end": "14:16", "duration": 87.0}, {"date": "2026-02-26", "start": "14:39", "end": "14:56", "duration": 16.7}, {"date": "2026-02-26", "start": "16:12", "end": "16:47", "duration": 35.8}, {"date": "2026-02-27", "start": "12:35", "end": "14:06", "duration": 90.9}, {"date": "2026-02-27", "start": "14:45", "end": "15:06", "duration": 21.9}, {"date": "2026-02-27", "start": "15:38", "end": "16:36", "duration": 57.6}], "Ranita Tripathy": [{"date": "2026-02-02", "start": "08:56", "end": "09:11", "duration": 15.2}, {"date": "2026-02-02", "start": "09:51", "end": "10:42", "duration": 50.4}, {"date": "2026-02-02", "start": "11:36", "end": "12:41", "duration": 64.8}, {"date": "2026-02-05", "start": "09:21", "end": "10:27", "duration": 66.1}, {"date": "2026-02-05", "start": "10:48", "end": "11:14", "duration": 26.2}, {"date": "2026-02-05", "start": "12:10", "end": "12:26", "duration": 15.7}, {"date": "2026-02-06", "start": "12:54", "end": "13:12", "duration": 17.8}, {"date": "2026-02-06", "start": "13:26", "end": "13:56", "duration": 29.9}, {"date": "2026-02-09", "start": "09:45", "end": "10:21", "duration": 36.0}, {"date": "2026-02-09", "start": "10:53", "end": "11:09", "duration": 16.7}, {"date": "2026-02-09", "start": "11:09", "end": "11:27", "duration": 17.4}, {"date": "2026-02-09", "start": "13:16", "end": "13:34", "duration": 18.2}, {"date": "2026-02-09", "start": "15:01", "end": "15:16", "duration": 15.0}, {"date": "2026-02-10", "start": "06:12", "end": "08:48", "duration": 155.5}, {"date": "2026-02-10", "start": "09:00", "end": "09:33", "duration": 32.7}, {"date": "2026-02-10", "start": "09:43", "end": "10:35", "duration": 52.7}, {"date": "2026-02-10", "start": "13:18", "end": "13:38", "duration": 20.7}, {"date": "2026-02-11", "start": "05:02", "end": "08:48", "duration": 226.2}, {"date": "2026-02-11", "start": "09:22", "end": "09:54", "duration": 32.4}, {"date": "2026-02-11", "start": "09:54", "end": "10:45", "duration": 50.8}, {"date": "2026-02-11", "start": "12:40", "end": "13:18", "duration": 38.2}, {"date": "2026-02-11", "start": "14:02", "end": "14:20", "duration": 18.0}, {"date": "2026-02-12", "start": "10:06", "end": "10:27", "duration": 21.3}, {"date": "2026-02-12", "start": "11:00", "end": "11:15", "duration": 15.1}, {"date": "2026-02-12", "start": "11:53", "end": "12:16", "duration": 22.4}, {"date": "2026-02-13", "start": "06:27", "end": "07:58", "duration": 91.7}, {"date": "2026-02-13", "start": "08:03", "end": "09:12", "duration": 69.4}, {"date": "2026-02-13", "start": "10:57", "end": "12:06", "duration": 69.2}, {"date": "2026-02-17", "start": "06:44", "end": "07:01", "duration": 17.2}, {"date": "2026-02-17", "start": "07:01", "end": "07:49", "duration": 48.4}, {"date": "2026-02-17", "start": "08:03", "end": "09:54", "duration": 110.8}, {"date": "2026-02-17", "start": "10:06", "end": "10:38", "duration": 32.1}, {"date": "2026-02-17", "start": "11:16", "end": "11:32", "duration": 15.7}, {"date": "2026-02-17", "start": "11:46", "end": "12:07", "duration": 21.0}, {"date": "2026-02-17", "start": "12:33", "end": "12:49", "duration": 15.2}, {"date": "2026-02-17", "start": "13:06", "end": "13:30", "duration": 23.6}, {"date": "2026-02-17", "start": "13:38", "end": "15:03", "duration": 84.5}, {"date": "2026-02-17", "start": "15:08", "end": "16:45", "duration": 96.2}, {"date": "2026-02-17", "start": "18:01", "end": "18:17", "duration": 15.5}, {"date": "2026-02-18", "start": "09:29", "end": "09:51", "duration": 21.3}, {"date": "2026-02-18", "start": "11:21", "end": "11:37", "duration": 15.9}, {"date": "2026-02-18", "start": "11:48", "end": "12:08", "duration": 19.9}, {"date": "2026-02-18", "start": "13:45", "end": "14:09", "duration": 23.5}, {"date": "2026-02-18", "start": "14:54", "end": "15:15", "duration": 21.3}, {"date": "2026-02-18", "start": "15:46", "end": "16:03", "duration": 17.5}, {"date": "2026-02-19", "start": "06:02", "end": "08:44", "duration": 161.9}, {"date": "2026-02-19", "start": "09:03", "end": "09:25", "duration": 21.1}, {"date": "2026-02-19", "start": "09:25", "end": "09:53", "duration": 28.6}, {"date": "2026-02-19", "start": "10:21", "end": "10:44", "duration": 22.9}, {"date": "2026-02-19", "start": "10:44", "end": "11:08", "duration": 23.8}, {"date": "2026-02-19", "start": "12:25", "end": "12:41", "duration": 15.9}, {"date": "2026-02-19", "start": "12:55", "end": "13:13", "duration": 18.9}, {"date": "2026-02-19", "start": "15:26", "end": "15:44", "duration": 18.2}, {"date": "2026-02-20", "start": "06:41", "end": "07:48", "duration": 66.2}, {"date": "2026-02-20", "start": "08:02", "end": "09:13", "duration": 70.4}, {"date": "2026-02-20", "start": "09:17", "end": "09:47", "duration": 30.7}, {"date": "2026-02-20", "start": "10:50", "end": "11:07", "duration": 16.6}, {"date": "2026-02-20", "start": "13:09", "end": "13:26", "duration": 17.1}, {"date": "2026-02-20", "start": "13:46", "end": "14:22", "duration": 36.2}, {"date": "2026-02-20", "start": "15:20", "end": "15:39", "duration": 19.2}, {"date": "2026-02-23", "start": "09:22", "end": "10:04", "duration": 42.6}, {"date": "2026-02-23", "start": "11:31", "end": "11:57", "duration": 26.2}, {"date": "2026-02-23", "start": "14:04", "end": "14:20", "duration": 16.1}, {"date": "2026-02-24", "start": "05:44", "end": "11:07", "duration": 322.6}, {"date": "2026-02-24", "start": "12:05", "end": "12:22", "duration": 17.2}, {"date": "2026-02-24", "start": "12:52", "end": "13:32", "duration": 39.9}, {"date": "2026-02-25", "start": "10:08", "end": "10:23", "duration": 15.2}, {"date": "2026-02-25", "start": "10:35", "end": "10:53", "duration": 18.6}, {"date": "2026-02-25", "start": "11:45", "end": "13:02", "duration": 76.4}, {"date": "2026-02-25", "start": "14:44", "end": "15:01", "duration": 17.1}, {"date": "2026-02-25", "start": "15:01", "end": "15:34", "duration": 32.6}, {"date": "2026-02-26", "start": "05:55", "end": "08:42", "duration": 166.7}, {"date": "2026-02-26", "start": "09:40", "end": "10:19", "duration": 38.2}, {"date": "2026-02-26", "start": "10:45", "end": "11:18", "duration": 33.3}, {"date": "2026-02-26", "start": "13:56", "end": "14:13", "duration": 16.5}, {"date": "2026-02-27", "start": "05:51", "end": "06:09", "duration": 18.2}, {"date": "2026-02-27", "start": "06:09", "end": "08:36", "duration": 146.6}, {"date": "2026-02-27", "start": "09:04", "end": "10:51", "duration": 107.3}, {"date": "2026-02-27", "start": "10:57", "end": "11:45", "duration": 47.5}, {"date": "2026-02-27", "start": "12:21", "end": "12:37", "duration": 15.2}], "Sankalp Rout": [{"date": "2026-02-02", "start": "06:32", "end": "08:55", "duration": 142.1}, {"date": "2026-02-02", "start": "09:54", "end": "14:22", "duration": 268.1}, {"date": "2026-02-02", "start": "15:47", "end": "16:31", "duration": 43.3}, {"date": "2026-02-03", "start": "09:48", "end": "13:10", "duration": 201.9}, {"date": "2026-02-03", "start": "13:46", "end": "14:11", "duration": 25.0}, {"date": "2026-02-03", "start": "14:30", "end": "18:08", "duration": 217.9}, {"date": "2026-02-03", "start": "19:06", "end": "19:21", "duration": 15.3}, {"date": "2026-02-04", "start": "13:42", "end": "13:58", "duration": 16.3}, {"date": "2026-02-04", "start": "14:26", "end": "17:01", "duration": 155.5}, {"date": "2026-02-05", "start": "12:22", "end": "12:41", "duration": 19.0}, {"date": "2026-02-05", "start": "12:51", "end": "13:06", "duration": 15.2}, {"date": "2026-02-05", "start": "13:34", "end": "15:04", "duration": 90.4}, {"date": "2026-02-05", "start": "15:29", "end": "16:07", "duration": 38.9}, {"date": "2026-02-06", "start": "13:22", "end": "15:14", "duration": 112.0}, {"date": "2026-02-06", "start": "15:14", "end": "15:50", "duration": 35.1}, {"date": "2026-02-09", "start": "13:36", "end": "14:56", "duration": 80.4}, {"date": "2026-02-09", "start": "15:23", "end": "15:45", "duration": 21.3}, {"date": "2026-02-09", "start": "16:03", "end": "16:34", "duration": 31.1}, {"date": "2026-02-10", "start": "14:56", "end": "15:17", "duration": 20.4}, {"date": "2026-02-10", "start": "15:25", "end": "15:43", "duration": 17.2}, {"date": "2026-02-10", "start": "16:25", "end": "16:42", "duration": 17.6}, {"date": "2026-02-11", "start": "05:48", "end": "09:08", "duration": 199.9}, {"date": "2026-02-11", "start": "09:30", "end": "13:02", "duration": 211.9}, {"date": "2026-02-11", "start": "13:38", "end": "13:56", "duration": 18.1}, {"date": "2026-02-11", "start": "13:56", "end": "14:14", "duration": 18.0}, {"date": "2026-02-11", "start": "14:23", "end": "14:58", "duration": 35.4}, {"date": "2026-02-11", "start": "15:03", "end": "15:22", "duration": 19.1}, {"date": "2026-02-12", "start": "15:00", "end": "15:44", "duration": 43.6}, {"date": "2026-02-12", "start": "16:03", "end": "16:24", "duration": 21.6}, {"date": "2026-02-12", "start": "16:51", "end": "17:07", "duration": 16.3}, {"date": "2026-02-13", "start": "07:17", "end": "14:14", "duration": 417.8}, {"date": "2026-02-13", "start": "14:37", "end": "14:53", "duration": 16.8}, {"date": "2026-02-17", "start": "08:01", "end": "10:02", "duration": 120.3}, {"date": "2026-02-17", "start": "10:26", "end": "12:36", "duration": 130.8}, {"date": "2026-02-17", "start": "13:32", "end": "14:03", "duration": 31.2}, {"date": "2026-02-17", "start": "14:28", "end": "15:52", "duration": 84.0}, {"date": "2026-02-17", "start": "16:33", "end": "16:59", "duration": 25.6}, {"date": "2026-02-17", "start": "17:16", "end": "17:45", "duration": 29.2}, {"date": "2026-02-18", "start": "14:47", "end": "15:05", "duration": 17.9}, {"date": "2026-02-18", "start": "15:16", "end": "16:11", "duration": 55.6}, {"date": "2026-02-18", "start": "16:27", "end": "16:43", "duration": 16.0}, {"date": "2026-02-18", "start": "17:04", "end": "17:24", "duration": 19.7}, {"date": "2026-02-19", "start": "07:08", "end": "12:58", "duration": 350.7}, {"date": "2026-02-19", "start": "13:02", "end": "13:17", "duration": 15.1}, {"date": "2026-02-19", "start": "13:46", "end": "14:07", "duration": 20.9}, {"date": "2026-02-19", "start": "14:25", "end": "15:27", "duration": 61.6}, {"date": "2026-02-19", "start": "15:32", "end": "15:49", "duration": 17.1}, {"date": "2026-02-20", "start": "08:55", "end": "13:20", "duration": 265.5}, {"date": "2026-02-20", "start": "13:59", "end": "14:22", "duration": 22.8}, {"date": "2026-02-20", "start": "15:15", "end": "15:48", "duration": 32.7}, {"date": "2026-02-20", "start": "16:01", "end": "16:24", "duration": 22.5}, {"date": "2026-02-23", "start": "13:32", "end": "13:54", "duration": 22.3}, {"date": "2026-02-23", "start": "14:07", "end": "14:24", "duration": 17.4}, {"date": "2026-02-23", "start": "14:47", "end": "15:11", "duration": 24.3}, {"date": "2026-02-23", "start": "15:23", "end": "16:25", "duration": 62.7}, {"date": "2026-02-23", "start": "16:57", "end": "17:30", "duration": 32.7}, {"date": "2026-02-24", "start": "13:58", "end": "14:21", "duration": 22.3}, {"date": "2026-02-25", "start": "07:43", "end": "12:06", "duration": 263.4}, {"date": "2026-02-25", "start": "12:06", "end": "12:36", "duration": 29.6}, {"date": "2026-02-25", "start": "12:40", "end": "12:58", "duration": 18.7}, {"date": "2026-02-25", "start": "13:00", "end": "13:32", "duration": 32.2}, {"date": "2026-02-25", "start": "14:34", "end": "14:50", "duration": 16.0}, {"date": "2026-02-25", "start": "15:08", "end": "15:54", "duration": 46.1}, {"date": "2026-02-25", "start": "16:15", "end": "17:12", "duration": 56.2}, {"date": "2026-02-26", "start": "07:49", "end": "08:58", "duration": 68.8}, {"date": "2026-02-26", "start": "09:38", "end": "15:07", "duration": 329.6}, {"date": "2026-02-26", "start": "16:40", "end": "17:05", "duration": 24.9}, {"date": "2026-02-27", "start": "11:24", "end": "12:58", "duration": 94.6}, {"date": "2026-02-27", "start": "13:23", "end": "13:40", "duration": 16.6}, {"date": "2026-02-27", "start": "13:44", "end": "15:16", "duration": 92.5}, {"date": "2026-02-27", "start": "15:29", "end": "16:18", "duration": 49.5}], "Shreya Patra": [{"date": "2026-02-02", "start": "08:55", "end": "09:29", "duration": 34.0}, {"date": "2026-02-02", "start": "09:29", "end": "09:46", "duration": 16.8}, {"date": "2026-02-02", "start": "10:44", "end": "11:07", "duration": 23.4}, {"date": "2026-02-02", "start": "11:12", "end": "14:09", "duration": 176.3}, {"date": "2026-02-02", "start": "14:23", "end": "14:59", "duration": 35.3}, {"date": "2026-02-03", "start": "14:59", "end": "15:15", "duration": 15.4}, {"date": "2026-02-03", "start": "15:15", "end": "15:34", "duration": 19.4}, {"date": "2026-02-03", "start": "15:40", "end": "16:17", "duration": 37.0}, {"date": "2026-02-04", "start": "05:45", "end": "06:33", "duration": 47.8}, {"date": "2026-02-04", "start": "06:36", "end": "08:41", "duration": 125.7}, {"date": "2026-02-04", "start": "08:45", "end": "15:46", "duration": 421.5}, {"date": "2026-02-04", "start": "15:46", "end": "16:08", "duration": 22.3}, {"date": "2026-02-04", "start": "17:35", "end": "17:51", "duration": 16.7}, {"date": "2026-02-05", "start": "15:46", "end": "16:15", "duration": 29.6}, {"date": "2026-02-05", "start": "17:18", "end": "17:39", "duration": 20.4}, {"date": "2026-02-06", "start": "16:03", "end": "16:24", "duration": 21.2}, {"date": "2026-02-06", "start": "16:27", "end": "17:08", "duration": 41.5}, {"date": "2026-02-09", "start": "16:00", "end": "16:16", "duration": 16.4}, {"date": "2026-02-10", "start": "08:39", "end": "13:31", "duration": 292.0}, {"date": "2026-02-10", "start": "15:04", "end": "15:21", "duration": 16.3}, {"date": "2026-02-11", "start": "09:27", "end": "15:17", "duration": 350.0}, {"date": "2026-02-11", "start": "15:18", "end": "15:59", "duration": 41.0}, {"date": "2026-02-11", "start": "16:19", "end": "16:41", "duration": 21.5}, {"date": "2026-02-11", "start": "17:33", "end": "17:49", "duration": 16.6}, {"date": "2026-02-11", "start": "17:57", "end": "18:16", "duration": 19.3}, {"date": "2026-02-12", "start": "07:22", "end": "17:59", "duration": 637.2}, {"date": "2026-02-17", "start": "08:05", "end": "13:58", "duration": 353.1}, {"date": "2026-02-17", "start": "13:58", "end": "15:02", "duration": 64.0}, {"date": "2026-02-17", "start": "15:44", "end": "16:18", "duration": 33.9}, {"date": "2026-02-18", "start": "08:39", "end": "09:02", "duration": 23.1}, {"date": "2026-02-18", "start": "09:02", "end": "15:16", "duration": 373.8}, {"date": "2026-02-18", "start": "15:34", "end": "16:58", "duration": 83.8}, {"date": "2026-02-19", "start": "14:43", "end": "15:26", "duration": 42.8}, {"date": "2026-02-19", "start": "15:50", "end": "16:08", "duration": 17.6}, {"date": "2026-02-19", "start": "16:11", "end": "16:34", "duration": 23.0}, {"date": "2026-02-20", "start": "16:28", "end": "16:56", "duration": 28.2}, {"date": "2026-02-20", "start": "18:05", "end": "18:20", "duration": 15.0}, {"date": "2026-02-24", "start": "16:39", "end": "17:08", "duration": 28.8}, {"date": "2026-02-25", "start": "15:48", "end": "16:16", "duration": 28.2}, {"date": "2026-02-25", "start": "16:16", "end": "16:54", "duration": 37.5}, {"date": "2026-02-25", "start": "17:24", "end": "19:04", "duration": 99.9}, {"date": "2026-02-26", "start": "13:48", "end": "16:31", "duration": 163.6}, {"date": "2026-02-26", "start": "17:03", "end": "17:26", "duration": 22.9}, {"date": "2026-02-27", "start": "08:28", "end": "08:53", "duration": 24.9}], "Smriti Mishra": [{"date": "2026-02-02", "start": "13:36", "end": "14:29", "duration": 52.1}, {"date": "2026-02-02", "start": "15:36", "end": "16:05", "duration": 28.7}, {"date": "2026-02-02", "start": "17:13", "end": "17:30", "duration": 16.9}, {"date": "2026-02-03", "start": "06:36", "end": "15:03", "duration": 506.2}, {"date": "2026-02-03", "start": "15:23", "end": "15:45", "duration": 21.9}, {"date": "2026-02-03", "start": "17:18", "end": "17:34", "duration": 15.4}, {"date": "2026-02-04", "start": "09:24", "end": "16:10", "duration": 405.9}, {"date": "2026-02-05", "start": "17:07", "end": "17:23", "duration": 16.7}, {"date": "2026-02-09", "start": "13:54", "end": "16:04", "duration": 130.4}, {"date": "2026-02-10", "start": "15:03", "end": "15:26", "duration": 23.4}, {"date": "2026-02-10", "start": "15:39", "end": "16:09", "duration": 29.5}, {"date": "2026-02-11", "start": "09:24", "end": "14:54", "duration": 329.6}, {"date": "2026-02-11", "start": "16:17", "end": "16:46", "duration": 29.7}, {"date": "2026-02-11", "start": "17:29", "end": "17:47", "duration": 18.0}, {"date": "2026-02-12", "start": "14:56", "end": "15:12", "duration": 15.2}, {"date": "2026-02-12", "start": "16:35", "end": "17:00", "duration": 25.4}, {"date": "2026-02-13", "start": "07:57", "end": "15:29", "duration": 451.5}, {"date": "2026-02-13", "start": "16:09", "end": "16:46", "duration": 37.5}, {"date": "2026-02-18", "start": "06:00", "end": "09:03", "duration": 183.6}, {"date": "2026-02-18", "start": "09:03", "end": "13:49", "duration": 286.3}, {"date": "2026-02-18", "start": "14:18", "end": "15:17", "duration": 58.5}, {"date": "2026-02-19", "start": "14:43", "end": "15:32", "duration": 49.0}, {"date": "2026-02-20", "start": "06:45", "end": "07:03", "duration": 18.1}, {"date": "2026-02-20", "start": "08:00", "end": "14:26", "duration": 386.3}, {"date": "2026-02-20", "start": "14:49", "end": "15:29", "duration": 40.0}, {"date": "2026-02-23", "start": "14:30", "end": "15:34", "duration": 64.6}, {"date": "2026-02-23", "start": "15:48", "end": "16:06", "duration": 17.6}, {"date": "2026-02-24", "start": "11:22", "end": "12:00", "duration": 38.2}, {"date": "2026-02-24", "start": "12:06", "end": "12:51", "duration": 45.8}, {"date": "2026-02-24", "start": "12:51", "end": "14:52", "duration": 121.0}, {"date": "2026-02-24", "start": "15:12", "end": "15:30", "duration": 18.0}, {"date": "2026-02-26", "start": "09:09", "end": "09:27", "duration": 18.4}, {"date": "2026-02-26", "start": "09:30", "end": "13:37", "duration": 246.9}, {"date": "2026-02-26", "start": "13:46", "end": "14:56", "duration": 69.9}, {"date": "2026-02-26", "start": "16:05", "end": "16:23", "duration": 17.6}, {"date": "2026-02-26", "start": "16:42", "end": "17:05", "duration": 22.8}, {"date": "2026-02-27", "start": "08:31", "end": "14:21", "duration": 349.7}, {"date": "2026-02-27", "start": "14:30", "end": "15:13", "duration": 43.3}, {"date": "2026-02-27", "start": "16:10", "end": "16:37", "duration": 26.6}]}, "cumulative_breaks": {"Harsh Singh": {"dates": ["2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27"], "values": [96.9, 210.9, 447.4, 653.4, 844.5, 1229.9, 1633.5, 1967.3, 2340.8, 2498.4, 2764.8, 2980.7, 3193.4, 3277.4, 3357.6, 3449.5, 3706.5]}, "ISHITA PATNAIK": {"dates": ["2026-02-02", "2026-02-03", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27"], "values": [106.5, 617.7, 769.4, 778.0, 917.6, 1143.3, 1282.8, 1475.1, 1497.4, 1966.8, 2079.6, 2153.8, 2202.3, 2208.7, 2250.0, 2254.6, 2275.5, 2275.5]}, "Ishika Dubey": {"dates": ["2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23"], "values": [227.3, 310.3, 668.9, 728.3, 921.5, 1328.8, 1581.2, 1668.0, 1668.0, 1995.1, 2101.7, 2531.7, 2599.9, 2599.9]}, "Mayank Rajput": {"dates": ["2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-17", "2026-02-18", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27"], "values": [16.2, 36.9, 36.9, 49.5, 49.5, 50.4, 221.6, 275.9, 275.9, 754.4, 1158.0, 1190.6, 1884.5, 1884.5, 1891.3, 2652.3, 3169.5, 3176.3]}, "Rajkumar Mallick": {"dates": ["2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27"], "values": [153.9, 312.4, 453.9, 550.8, 550.8, 694.7, 824.2, 1149.4, 1367.0, 1790.6, 2046.4, 2272.2, 2684.8, 2958.3, 3082.8, 3190.2, 3545.6, 3753.1, 3878.5]}, "Ranita Tripathy": {"dates": ["2026-02-02", "2026-02-03", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27"], "values": [85.4, 85.4, 148.4, 166.1, 194.4, 396.0, 686.6, 700.4, 885.7, 1200.9, 1230.3, 1421.6, 1573.0, 1612.9, 1947.6, 2032.5, 2227.2, 2487.0]}, "Sankalp Rout": {"dates": ["2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27"], "values": [408.5, 808.6, 950.4, 1053.9, 1171.0, 1258.8, 1269.0, 1681.4, 1717.9, 2122.5, 2453.6, 2502.8, 2893.2, 3176.7, 3261.1, 3268.4, 3625.6, 4003.9, 4197.1]}, "Shreya Patra": {"dates": ["2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27"], "values": [210.8, 237.6, 796.6, 816.6, 849.3, 850.7, 1129.0, 1502.4, 2124.6, 2124.6, 2530.6, 2966.3, 3004.7, 3017.9, 3031.7, 3152.3, 3308.8, 3318.7]}, "Smriti Mishra": {"dates": ["2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27"], "values": [52.7, 551.2, 942.1, 943.8, 943.8, 1059.2, 1082.1, 1414.4, 1425.0, 1884.0, 2367.4, 2401.4, 2800.8, 2853.0, 3016.0, 3016.0, 3316.6, 3691.2]}}, "heatmap": {"Harsh Singh": [0.0, 1.1, 2.5, 1.5, 0.8, 0.0, 0.9, 4.5, 7.1, 6.1, 8.4, 12.0, 12.8, 11.5, 9.2, 13.1, 7.0, 4.8, 5.4, 1.4, 1.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "ISHITA PATNAIK": [0.0, 0.0, 0.1, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.3, 7.1, 1.7, 4.6, 5.1, 4.8, 5.7, 16.3, 19.4, 21.4, 14.2, 5.3, 0.2, 1.6, 0.0, 0.0, 0.0], "Ishika Dubey": [0.0, 0.6, 1.4, 0.2, 0.0, 0.1, 0.1, 1.6, 4.3, 0.5, 1.6, 3.9, 6.9, 3.3, 3.3, 4.9, 6.5, 5.7, 4.0, 11.9, 12.4, 7.4, 11.8, 6.0, 3.6, 0.4, 0.0, 0.0, 0.0, 0.0], "Mayank Rajput": [0.0, 0.4, 0.2, 0.4, 0.6, 0.1, 0.1, 0.0, 0.7, 0.1, 0.0, 0.0, 0.0, 0.0, 0.3, 0.6, 0.2, 0.0, 0.8, 3.3, 9.9, 17.7, 15.5, 18.9, 17.9, 12.4, 5.7, 4.0, 0.1, 0.0], "Rajkumar Mallick": [0.0, 0.0, 0.2, 0.0, 0.0, 0.5, 0.1, 0.6, 1.5, 0.8, 0.5, 0.8, 2.9, 5.9, 7.8, 5.6, 5.7, 2.7, 7.4, 6.4, 10.0, 11.4, 9.8, 7.7, 10.1, 2.5, 0.0, 0.0, 0.0, 0.0], "Ranita Tripathy": [0.3, 2.3, 2.0, 0.9, 0.1, 0.4, 0.3, 3.9, 5.2, 4.1, 5.3, 6.3, 6.7, 7.3, 7.6, 8.8, 8.7, 9.4, 9.2, 8.2, 5.4, 5.6, 4.9, 3.1, 2.5, 1.5, 0.9, 0.1, 0.0, 0.0], "Sankalp Rout": [0.0, 0.2, 0.0, 0.8, 1.9, 0.6, 0.1, 0.5, 1.8, 1.2, 0.7, 0.0, 0.5, 0.0, 0.8, 2.8, 6.5, 5.0, 7.6, 7.3, 9.7, 7.6, 10.7, 9.1, 7.8, 4.5, 2.4, 1.1, 1.0, 0.0], "Shreya Patra": [0.0, 0.3, 0.1, 0.1, 0.1, 0.1, 0.7, 1.3, 0.9, 0.3, 0.6, 0.3, 0.2, 0.0, 0.0, 0.1, 1.3, 1.3, 1.7, 1.7, 4.5, 9.2, 6.3, 11.6, 15.6, 12.3, 10.7, 3.7, 2.5, 0.0], "Smriti Mishra": [0.0, 0.0, 0.1, 0.2, 0.6, 1.1, 0.1, 0.1, 0.5, 0.1, 0.0, 0.0, 0.1, 0.0, 0.2, 0.1, 0.9, 3.1, 4.7, 5.6, 8.2, 14.1, 15.2, 23.8, 21.1, 10.2, 1.4, 0.0, 0.0, 0.0]}, "heatmap_slots": ["05:00", "05:30", "06:00", "06:30", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30"], "capacity": {"Harsh Singh": {"pacing": 40.0, "realistic_max": 450, "current_avg": 113.4, "gap": 337}, "ISHITA PATNAIK": {"pacing": 39.0, "realistic_max": 462, "current_avg": 107.8, "gap": 354}, "Ishika Dubey": {"pacing": 57.0, "realistic_max": 316, "current_avg": 102.5, "gap": 213}, "Mayank Rajput": {"pacing": 57.0, "realistic_max": 316, "current_avg": 109.9, "gap": 206}, "Rajkumar Mallick": {"pacing": 74.0, "realistic_max": 243, "current_avg": 100.8, "gap": 142}, "Ranita Tripathy": {"pacing": 93.0, "realistic_max": 194, "current_avg": 121.6, "gap": 72}, "Sankalp Rout": {"pacing": 46.0, "realistic_max": 391, "current_avg": 92.4, "gap": 299}, "Shreya Patra": {"pacing": 37.0, "realistic_max": 486, "current_avg": 87.3, "gap": 399}, "Smriti Mishra": {"pacing": 44.0, "realistic_max": 409, "current_avg": 111.2, "gap": 298}}, "scorecard": {"Harsh Singh": {"hitting_target": 45, "daily_output": 70, "break_efficiency": 45, "w2_output": 20, "consistency": 95, "trend": 70, "overall": 57.5, "daily_std": 12.4}, "ISHITA PATNAIK": {"hitting_target": 45, "daily_output": 45, "break_efficiency": 95, "w2_output": 95, "consistency": 70, "trend": 70, "overall": 67.5, "daily_std": 19.0}, "Ishika Dubey": {"hitting_target": 70, "daily_output": 45, "break_efficiency": 70, "w2_output": 70, "consistency": 20, "trend": 70, "overall": 57.5, "daily_std": 43.7}, "Mayank Rajput": {"hitting_target": 70, "daily_output": 45, "break_efficiency": 95, "w2_output": 95, "consistency": 45, "trend": 95, "overall": 72.5, "daily_std": 32.7}, "Rajkumar Mallick": {"hitting_target": 45, "daily_output": 45, "break_efficiency": 45, "w2_output": 95, "consistency": 45, "trend": 70, "overall": 56.2, "daily_std": 33.7}, "Ranita Tripathy": {"hitting_target": 70, "daily_output": 95, "break_efficiency": 45, "w2_output": 70, "consistency": 70, "trend": 70, "overall": 71.2, "daily_std": 22.7}, "Sankalp Rout": {"hitting_target": 20, "daily_output": 45, "break_efficiency": 45, "w2_output": 95, "consistency": 70, "trend": 45, "overall": 51.2, "daily_std": 24.4}, "Shreya Patra": {"hitting_target": 20, "daily_output": 20, "break_efficiency": 70, "w2_output": 95, "consistency": 45, "trend": 70, "overall": 50.0, "daily_std": 38.2}, "Smriti Mishra": {"hitting_target": 45, "daily_output": 70, "break_efficiency": 70, "w2_output": 95, "consistency": 70, "trend": 70, "overall": 68.8, "daily_std": 21.2}}, "break_log_display": {"Harsh Singh": [{"date": "2026-02-02", "start": "09:33", "end": "10:04", "duration": 31.0}, {"date": "2026-02-02", "start": "10:34", "end": "11:03", "duration": 28.9}, {"date": "2026-02-02", "start": "11:25", "end": "12:19", "duration": 53.4}, {"date": "2026-02-02", "start": "12:29", "end": "13:13", "duration": 43.6}, {"date": "2026-02-03", "start": "09:45", "end": "10:13", "duration": 27.6}, {"date": "2026-02-03", "start": "10:27", "end": "10:51", "duration": 24.4}, {"date": "2026-02-03", "start": "11:19", "end": "13:06", "duration": 107.0}, {"date": "2026-02-04", "start": "06:45", "end": "08:29", "duration": 103.9}, {"date": "2026-02-04", "start": "09:24", "end": "10:23", "duration": 58.6}, {"date": "2026-02-04", "start": "10:23", "end": "11:16", "duration": 53.2}, {"date": "2026-02-04", "start": "11:36", "end": "12:49", "duration": 72.9}, {"date": "2026-02-04", "start": "13:03", "end": "13:26", "duration": 22.9}, {"date": "2026-02-05", "start": "09:16", "end": "10:36", "duration": 79.4}, {"date": "2026-02-05", "start": "10:55", "end": "11:21", "duration": 25.6}, {"date": "2026-02-05", "start": "11:41", "end": "12:33", "duration": 52.1}, {"date": "2026-02-05", "start": "12:49", "end": "14:38", "duration": 108.9}, {"date": "2026-02-09", "start": "07:25", "end": "09:02", "duration": 97.8}, {"date": "2026-02-09", "start": "09:15", "end": "10:25", "duration": 70.2}, {"date": "2026-02-09", "start": "10:38", "end": "11:30", "duration": 52.0}, {"date": "2026-02-09", "start": "11:50", "end": "12:19", "duration": 28.6}, {"date": "2026-02-10", "start": "06:08", "end": "07:10", "duration": 61.7}, {"date": "2026-02-10", "start": "07:14", "end": "08:44", "duration": 89.8}, {"date": "2026-02-10", "start": "08:59", "end": "09:21", "duration": 22.3}, {"date": "2026-02-10", "start": "09:29", "end": "11:01", "duration": 91.8}, {"date": "2026-02-10", "start": "11:04", "end": "12:45", "duration": 100.5}, {"date": "2026-02-10", "start": "12:55", "end": "14:16", "duration": 80.8}, {"date": "2026-02-10", "start": "14:29", "end": "15:13", "duration": 43.5}, {"date": "2026-02-11", "start": "03:45", "end": "08:59", "duration": 313.8}, {"date": "2026-02-11", "start": "09:30", "end": "10:37", "duration": 67.5}, {"date": "2026-02-11", "start": "10:52", "end": "11:27", "duration": 34.7}, {"date": "2026-02-11", "start": "11:41", "end": "12:29", "duration": 47.6}, {"date": "2026-02-12", "start": "06:15", "end": "10:32", "duration": 256.8}, {"date": "2026-02-12", "start": "10:47", "end": "11:15", "duration": 27.4}, {"date": "2026-02-12", "start": "11:33", "end": "12:21", "duration": 48.0}, {"date": "2026-02-12", "start": "12:44", "end": "13:45", "duration": 61.6}, {"date": "2026-02-13", "start": "06:08", "end": "06:31", "duration": 22.3}, {"date": "2026-02-13", "start": "06:46", "end": "09:34", "duration": 167.9}, {"date": "2026-02-13", "start": "10:28", "end": "14:16", "duration": 228.3}, {"date": "2026-02-18", "start": "08:52", "end": "11:44", "duration": 172.2}, {"date": "2026-02-19", "start": "06:02", "end": "08:27", "duration": 145.5}, {"date": "2026-02-19", "start": "08:51", "end": "10:37", "duration": 106.3}, {"date": "2026-02-19", "start": "10:52", "end": "11:34", "duration": 41.6}, {"date": "2026-02-19", "start": "12:44", "end": "13:17", "duration": 33.0}, {"date": "2026-02-20", "start": "06:36", "end": "09:54", "duration": 198.6}, {"date": "2026-02-20", "start": "10:28", "end": "11:06", "duration": 38.2}, {"date": "2026-02-20", "start": "11:41", "end": "12:05", "duration": 24.1}, {"date": "2026-02-23", "start": "08:39", "end": "09:48", "duration": 68.5}, {"date": "2026-02-23", "start": "09:59", "end": "10:23", "duration": 23.5}, {"date": "2026-02-23", "start": "10:53", "end": "11:15", "duration": 21.5}, {"date": "2026-02-23", "start": "11:42", "end": "12:21", "duration": 38.4}, {"date": "2026-02-23", "start": "12:48", "end": "15:03", "duration": 135.8}, {"date": "2026-02-24", "start": "11:28", "end": "11:58", "duration": 29.9}, {"date": "2026-02-24", "start": "12:29", "end": "13:08", "duration": 38.9}, {"date": "2026-02-24", "start": "13:36", "end": "14:36", "duration": 60.2}, {"date": "2026-02-25", "start": "10:32", "end": "11:35", "duration": 62.8}, {"date": "2026-02-25", "start": "11:54", "end": "12:24", "duration": 30.1}, {"date": "2026-02-25", "start": "12:54", "end": "13:15", "duration": 21.3}, {"date": "2026-02-25", "start": "13:30", "end": "13:56", "duration": 26.0}, {"date": "2026-02-26", "start": "09:28", "end": "10:39", "duration": 70.8}, {"date": "2026-02-26", "start": "10:54", "end": "11:15", "duration": 21.5}, {"date": "2026-02-26", "start": "11:43", "end": "12:27", "duration": 44.1}, {"date": "2026-02-27", "start": "06:15", "end": "08:11", "duration": 115.3}, {"date": "2026-02-27", "start": "08:34", "end": "09:51", "duration": 77.0}, {"date": "2026-02-27", "start": "10:03", "end": "11:09", "duration": 66.2}, {"date": "2026-02-27", "start": "11:37", "end": "12:30", "duration": 52.7}], "ISHITA PATNAIK": [{"date": "2026-02-02", "start": "12:29", "end": "13:30", "duration": 61.5}, {"date": "2026-02-02", "start": "13:52", "end": "15:07", "duration": 75.0}, {"date": "2026-02-03", "start": "06:18", "end": "13:41", "duration": 443.3}, {"date": "2026-02-03", "start": "13:43", "end": "14:39", "duration": 55.9}, {"date": "2026-02-03", "start": "15:52", "end": "16:45", "duration": 53.3}, {"date": "2026-02-05", "start": "12:37", "end": "15:24", "duration": 166.7}, {"date": "2026-02-06", "start": "15:31", "end": "15:54", "duration": 23.6}, {"date": "2026-02-09", "start": "12:24", "end": "14:58", "duration": 154.6}, {"date": "2026-02-10", "start": "11:18", "end": "14:17", "duration": 178.7}, {"date": "2026-02-10", "start": "14:49", "end": "15:36", "duration": 47.5}, {"date": "2026-02-10", "start": "16:13", "end": "16:58", "duration": 44.5}, {"date": "2026-02-11", "start": "13:28", "end": "15:47", "duration": 138.9}, {"date": "2026-02-11", "start": "16:29", "end": "17:00", "duration": 30.6}, {"date": "2026-02-12", "start": "12:23", "end": "15:17", "duration": 174.3}, {"date": "2026-02-12", "start": "15:36", "end": "16:24", "duration": 48.0}, {"date": "2026-02-13", "start": "15:30", "end": "16:08", "duration": 37.3}, {"date": "2026-02-17", "start": "07:51", "end": "12:49", "duration": 298.1}, {"date": "2026-02-17", "start": "13:18", "end": "15:27", "duration": 129.1}, {"date": "2026-02-17", "start": "16:34", "end": "18:01", "duration": 87.2}, {"date": "2026-02-18", "start": "13:36", "end": "15:44", "duration": 127.8}, {"date": "2026-02-19", "start": "14:42", "end": "16:11", "duration": 89.2}, {"date": "2026-02-20", "start": "15:19", "end": "16:23", "duration": 63.5}, {"date": "2026-02-23", "start": "13:53", "end": "14:14", "duration": 20.5}, {"date": "2026-02-24", "start": "14:12", "end": "15:05", "duration": 52.5}, {"date": "2026-02-26", "start": "15:17", "end": "15:53", "duration": 35.9}], "Ishika Dubey": [{"date": "2026-02-02", "start": "09:36", "end": "10:39", "duration": 63.6}, {"date": "2026-02-02", "start": "11:14", "end": "13:22", "duration": 128.8}, {"date": "2026-02-02", "start": "13:28", "end": "14:44", "duration": 76.1}, {"date": "2026-02-03", "start": "10:45", "end": "12:23", "duration": 98.0}, {"date": "2026-02-04", "start": "06:35", "end": "08:45", "duration": 130.5}, {"date": "2026-02-04", "start": "09:23", "end": "10:36", "duration": 73.0}, {"date": "2026-02-04", "start": "11:08", "end": "14:19", "duration": 191.5}, {"date": "2026-02-04", "start": "15:17", "end": "15:41", "duration": 23.6}, {"date": "2026-02-05", "start": "13:06", "end": "13:48", "duration": 42.5}, {"date": "2026-02-05", "start": "14:29", "end": "14:52", "duration": 23.7}, {"date": "2026-02-05", "start": "15:13", "end": "15:38", "duration": 24.4}, {"date": "2026-02-05", "start": "16:09", "end": "16:38", "duration": 28.8}, {"date": "2026-02-09", "start": "10:41", "end": "11:13", "duration": 31.8}, {"date": "2026-02-09", "start": "11:49", "end": "14:36", "duration": 166.4}, {"date": "2026-02-09", "start": "15:31", "end": "16:11", "duration": 40.0}, {"date": "2026-02-10", "start": "06:13", "end": "08:49", "duration": 155.8}, {"date": "2026-02-10", "start": "09:01", "end": "10:57", "duration": 116.3}, {"date": "2026-02-10", "start": "11:21", "end": "11:45", "duration": 23.6}, {"date": "2026-02-10", "start": "11:53", "end": "14:37", "duration": 163.9}, {"date": "2026-02-10", "start": "15:39", "end": "16:01", "duration": 22.7}, {"date": "2026-02-11", "start": "09:27", "end": "11:03", "duration": 96.4}, {"date": "2026-02-11", "start": "11:34", "end": "14:40", "duration": 186.0}, {"date": "2026-02-12", "start": "13:45", "end": "14:55", "duration": 70.2}, {"date": "2026-02-12", "start": "15:30", "end": "16:08", "duration": 38.2}, {"date": "2026-02-12", "start": "16:31", "end": "16:55", "duration": 23.4}, {"date": "2026-02-17", "start": "08:04", "end": "09:49", "duration": 104.6}, {"date": "2026-02-17", "start": "09:49", "end": "11:56", "duration": 127.2}, {"date": "2026-02-17", "start": "12:55", "end": "14:34", "duration": 98.3}, {"date": "2026-02-17", "start": "15:23", "end": "16:05", "duration": 42.8}, {"date": "2026-02-17", "start": "16:33", "end": "17:02", "duration": 29.2}, {"date": "2026-02-18", "start": "12:47", "end": "14:31", "duration": 104.4}, {"date": "2026-02-18", "start": "15:29", "end": "16:01", "duration": 32.2}, {"date": "2026-02-19", "start": "05:57", "end": "12:49", "duration": 411.9}, {"date": "2026-02-19", "start": "14:05", "end": "14:53", "duration": 48.1}, {"date": "2026-02-20", "start": "14:12", "end": "15:35", "duration": 83.2}], "Mayank Rajput": [{"date": "2026-02-02", "start": "15:07", "end": "15:33", "duration": 26.0}, {"date": "2026-02-03", "start": "16:00", "end": "16:36", "duration": 35.7}, {"date": "2026-02-05", "start": "16:13", "end": "16:41", "duration": 27.6}, {"date": "2026-02-10", "start": "12:12", "end": "15:18", "duration": 186.2}, {"date": "2026-02-11", "start": "17:06", "end": "18:14", "duration": 68.1}, {"date": "2026-02-13", "start": "07:12", "end": "15:05", "duration": 473.8}, {"date": "2026-02-13", "start": "15:45", "end": "16:20", "duration": 34.7}, {"date": "2026-02-17", "start": "08:03", "end": "14:19", "duration": 375.8}, {"date": "2026-02-17", "start": "17:12", "end": "18:05", "duration": 53.4}, {"date": "2026-02-18", "start": "18:10", "end": "18:57", "duration": 47.6}, {"date": "2026-02-20", "start": "00:56", "end": "05:52", "duration": 296.5}, {"date": "2026-02-20", "start": "06:06", "end": "06:55", "duration": 48.5}, {"date": "2026-02-20", "start": "07:27", "end": "12:23", "duration": 296.4}, {"date": "2026-02-20", "start": "13:04", "end": "14:31", "duration": 87.5}, {"date": "2026-02-20", "start": "16:30", "end": "17:09", "duration": 38.9}, {"date": "2026-02-25", "start": "02:14", "end": "14:53", "duration": 758.5}, {"date": "2026-02-25", "start": "15:39", "end": "16:12", "duration": 32.5}, {"date": "2026-02-26", "start": "05:40", "end": "07:03", "duration": 82.9}, {"date": "2026-02-26", "start": "07:03", "end": "09:11", "duration": 128.4}, {"date": "2026-02-26", "start": "09:42", "end": "15:33", "duration": 350.9}, {"date": "2026-02-27", "start": "16:43", "end": "17:05", "duration": 21.2}], "Rajkumar Mallick": [{"date": "2026-02-02", "start": "10:07", "end": "12:05", "duration": 118.5}, {"date": "2026-02-02", "start": "12:54", "end": "13:53", "duration": 59.1}, {"date": "2026-02-03", "start": "11:31", "end": "12:38", "duration": 67.3}, {"date": "2026-02-03", "start": "14:21", "end": "15:20", "duration": 58.3}, {"date": "2026-02-03", "start": "15:27", "end": "16:02", "duration": 35.3}, {"date": "2026-02-03", "start": "16:23", "end": "17:15", "duration": 52.6}, {"date": "2026-02-04", "start": "11:34", "end": "12:15", "duration": 41.3}, {"date": "2026-02-04", "start": "12:27", "end": "12:49", "duration": 22.1}, {"date": "2026-02-04", "start": "13:08", "end": "14:17", "duration": 69.9}, {"date": "2026-02-04", "start": "15:29", "end": "16:30", "duration": 60.3}, {"date": "2026-02-04", "start": "16:54", "end": "17:17", "duration": 22.7}, {"date": "2026-02-05", "start": "12:04", "end": "12:48", "duration": 44.3}, {"date": "2026-02-05", "start": "14:40", "end": "15:28", "duration": 47.5}, {"date": "2026-02-05", "start": "16:22", "end": "17:12", "duration": 49.9}, {"date": "2026-02-09", "start": "11:44", "end": "14:03", "duration": 138.9}, {"date": "2026-02-09", "start": "14:07", "end": "14:28", "duration": 20.7}, {"date": "2026-02-09", "start": "14:33", "end": "14:54", "duration": 20.3}, {"date": "2026-02-09", "start": "15:29", "end": "15:53", "duration": 24.0}, {"date": "2026-02-10", "start": "12:39", "end": "14:48", "duration": 128.9}, {"date": "2026-02-10", "start": "15:54", "end": "16:25", "duration": 30.6}, {"date": "2026-02-11", "start": "09:06", "end": "11:41", "duration": 155.7}, {"date": "2026-02-11", "start": "11:51", "end": "12:55", "duration": 63.8}, {"date": "2026-02-11", "start": "13:29", "end": "16:00", "duration": 150.7}, {"date": "2026-02-12", "start": "09:29", "end": "12:24", "duration": 174.8}, {"date": "2026-02-12", "start": "13:41", "end": "14:29", "duration": 48.0}, {"date": "2026-02-12", "start": "16:23", "end": "16:58", "duration": 34.9}, {"date": "2026-02-13", "start": "06:18", "end": "09:28", "duration": 190.2}, {"date": "2026-02-13", "start": "09:28", "end": "11:29", "duration": 121.5}, {"date": "2026-02-13", "start": "11:41", "end": "12:05", "duration": 24.2}, {"date": "2026-02-13", "start": "12:05", "end": "13:25", "duration": 80.0}, {"date": "2026-02-13", "start": "13:26", "end": "14:12", "duration": 45.4}, {"date": "2026-02-13", "start": "16:16", "end": "17:08", "duration": 52.3}, {"date": "2026-02-17", "start": "08:05", "end": "10:02", "duration": 116.3}, {"date": "2026-02-17", "start": "10:06", "end": "11:06", "duration": 60.3}, {"date": "2026-02-17", "start": "12:21", "end": "13:21", "duration": 60.2}, {"date": "2026-02-17", "start": "13:23", "end": "14:39", "duration": 75.8}, {"date": "2026-02-18", "start": "09:34", "end": "12:45", "duration": 190.3}, {"date": "2026-02-18", "start": "13:08", "end": "13:58", "duration": 49.8}, {"date": "2026-02-18", "start": "14:37", "end": "15:06", "duration": 29.1}, {"date": "2026-02-19", "start": "06:17", "end": "11:39", "duration": 321.6}, {"date": "2026-02-19", "start": "13:05", "end": "14:42", "duration": 97.0}, {"date": "2026-02-19", "start": "14:43", "end": "15:15", "duration": 31.8}, {"date": "2026-02-19", "start": "16:37", "end": "17:00", "duration": 22.2}, {"date": "2026-02-20", "start": "08:56", "end": "11:53", "duration": 177.7}, {"date": "2026-02-20", "start": "12:26", "end": "12:54", "duration": 27.5}, {"date": "2026-02-20", "start": "13:21", "end": "14:46", "duration": 84.8}, {"date": "2026-02-20", "start": "16:09", "end": "16:52", "duration": 43.5}, {"date": "2026-02-23", "start": "11:03", "end": "12:04", "duration": 61.3}, {"date": "2026-02-23", "start": "13:15", "end": "13:59", "duration": 44.1}, {"date": "2026-02-23", "start": "14:07", "end": "15:11", "duration": 64.1}, {"date": "2026-02-24", "start": "12:16", "end": "13:46", "duration": 89.8}, {"date": "2026-02-24", "start": "14:43", "end": "15:24", "duration": 41.3}, {"date": "2026-02-25", "start": "07:49", "end": "11:52", "duration": 242.9}, {"date": "2026-02-25", "start": "12:19", "end": "14:29", "duration": 130.4}, {"date": "2026-02-25", "start": "14:29", "end": "14:56", "duration": 27.1}, {"date": "2026-02-26", "start": "09:06", "end": "09:27", "duration": 20.6}, {"date": "2026-02-26", "start": "09:42", "end": "11:45", "duration": 122.4}, {"date": "2026-02-26", "start": "12:49", "end": "14:16", "duration": 87.0}, {"date": "2026-02-26", "start": "16:12", "end": "16:47", "duration": 35.8}, {"date": "2026-02-27", "start": "12:35", "end": "14:06", "duration": 90.9}, {"date": "2026-02-27", "start": "14:45", "end": "15:06", "duration": 21.9}, {"date": "2026-02-27", "start": "15:38", "end": "16:36", "duration": 57.6}], "Ranita Tripathy": [{"date": "2026-02-02", "start": "09:51", "end": "10:42", "duration": 50.4}, {"date": "2026-02-02", "start": "11:36", "end": "12:41", "duration": 64.8}, {"date": "2026-02-05", "start": "09:21", "end": "10:27", "duration": 66.1}, {"date": "2026-02-05", "start": "10:48", "end": "11:14", "duration": 26.2}, {"date": "2026-02-06", "start": "13:26", "end": "13:56", "duration": 29.9}, {"date": "2026-02-09", "start": "09:45", "end": "10:21", "duration": 36.0}, {"date": "2026-02-10", "start": "06:12", "end": "08:48", "duration": 155.5}, {"date": "2026-02-10", "start": "09:00", "end": "09:33", "duration": 32.7}, {"date": "2026-02-10", "start": "09:43", "end": "10:35", "duration": 52.7}, {"date": "2026-02-10", "start": "13:18", "end": "13:38", "duration": 20.7}, {"date": "2026-02-11", "start": "05:02", "end": "08:48", "duration": 226.2}, {"date": "2026-02-11", "start": "09:22", "end": "09:54", "duration": 32.4}, {"date": "2026-02-11", "start": "09:54", "end": "10:45", "duration": 50.8}, {"date": "2026-02-11", "start": "12:40", "end": "13:18", "duration": 38.2}, {"date": "2026-02-12", "start": "10:06", "end": "10:27", "duration": 21.3}, {"date": "2026-02-12", "start": "11:53", "end": "12:16", "duration": 22.4}, {"date": "2026-02-13", "start": "06:27", "end": "07:58", "duration": 91.7}, {"date": "2026-02-13", "start": "08:03", "end": "09:12", "duration": 69.4}, {"date": "2026-02-13", "start": "10:57", "end": "12:06", "duration": 69.2}, {"date": "2026-02-17", "start": "07:01", "end": "07:49", "duration": 48.4}, {"date": "2026-02-17", "start": "08:03", "end": "09:54", "duration": 110.8}, {"date": "2026-02-17", "start": "10:06", "end": "10:38", "duration": 32.1}, {"date": "2026-02-17", "start": "11:46", "end": "12:07", "duration": 21.0}, {"date": "2026-02-17", "start": "13:06", "end": "13:30", "duration": 23.6}, {"date": "2026-02-17", "start": "13:38", "end": "15:03", "duration": 84.5}, {"date": "2026-02-17", "start": "15:08", "end": "16:45", "duration": 96.2}, {"date": "2026-02-18", "start": "09:29", "end": "09:51", "duration": 21.3}, {"date": "2026-02-18", "start": "13:45", "end": "14:09", "duration": 23.5}, {"date": "2026-02-18", "start": "14:54", "end": "15:15", "duration": 21.3}, {"date": "2026-02-19", "start": "06:02", "end": "08:44", "duration": 161.9}, {"date": "2026-02-19", "start": "09:03", "end": "09:25", "duration": 21.1}, {"date": "2026-02-19", "start": "09:25", "end": "09:53", "duration": 28.6}, {"date": "2026-02-19", "start": "10:21", "end": "10:44", "duration": 22.9}, {"date": "2026-02-19", "start": "10:44", "end": "11:08", "duration": 23.8}, {"date": "2026-02-20", "start": "06:41", "end": "07:48", "duration": 66.2}, {"date": "2026-02-20", "start": "08:02", "end": "09:13", "duration": 70.4}, {"date": "2026-02-20", "start": "09:17", "end": "09:47", "duration": 30.7}, {"date": "2026-02-20", "start": "13:46", "end": "14:22", "duration": 36.2}, {"date": "2026-02-23", "start": "09:22", "end": "10:04", "duration": 42.6}, {"date": "2026-02-23", "start": "11:31", "end": "11:57", "duration": 26.2}, {"date": "2026-02-24", "start": "05:44", "end": "11:07", "duration": 322.6}, {"date": "2026-02-24", "start": "12:52", "end": "13:32", "duration": 39.9}, {"date": "2026-02-25", "start": "11:45", "end": "13:02", "duration": 76.4}, {"date": "2026-02-25", "start": "15:01", "end": "15:34", "duration": 32.6}, {"date": "2026-02-26", "start": "05:55", "end": "08:42", "duration": 166.7}, {"date": "2026-02-26", "start": "09:40", "end": "10:19", "duration": 38.2}, {"date": "2026-02-26", "start": "10:45", "end": "11:18", "duration": 33.3}, {"date": "2026-02-27", "start": "06:09", "end": "08:36", "duration": 146.6}, {"date": "2026-02-27", "start": "09:04", "end": "10:51", "duration": 107.3}, {"date": "2026-02-27", "start": "10:57", "end": "11:45", "duration": 47.5}], "Sankalp Rout": [{"date": "2026-02-02", "start": "06:32", "end": "08:55", "duration": 142.1}, {"date": "2026-02-02", "start": "09:54", "end": "14:22", "duration": 268.1}, {"date": "2026-02-02", "start": "15:47", "end": "16:31", "duration": 43.3}, {"date": "2026-02-03", "start": "09:48", "end": "13:10", "duration": 201.9}, {"date": "2026-02-03", "start": "13:46", "end": "14:11", "duration": 25.0}, {"date": "2026-02-03", "start": "14:30", "end": "18:08", "duration": 217.9}, {"date": "2026-02-04", "start": "14:26", "end": "17:01", "duration": 155.5}, {"date": "2026-02-05", "start": "13:34", "end": "15:04", "duration": 90.4}, {"date": "2026-02-05", "start": "15:29", "end": "16:07", "duration": 38.9}, {"date": "2026-02-06", "start": "13:22", "end": "15:14", "duration": 112.0}, {"date": "2026-02-06", "start": "15:14", "end": "15:50", "duration": 35.1}, {"date": "2026-02-09", "start": "13:36", "end": "14:56", "duration": 80.4}, {"date": "2026-02-09", "start": "15:23", "end": "15:45", "duration": 21.3}, {"date": "2026-02-09", "start": "16:03", "end": "16:34", "duration": 31.1}, {"date": "2026-02-10", "start": "14:56", "end": "15:17", "duration": 20.4}, {"date": "2026-02-11", "start": "05:48", "end": "09:08", "duration": 199.9}, {"date": "2026-02-11", "start": "09:30", "end": "13:02", "duration": 211.9}, {"date": "2026-02-11", "start": "14:23", "end": "14:58", "duration": 35.4}, {"date": "2026-02-12", "start": "15:00", "end": "15:44", "duration": 43.6}, {"date": "2026-02-12", "start": "16:03", "end": "16:24", "duration": 21.6}, {"date": "2026-02-13", "start": "07:17", "end": "14:14", "duration": 417.8}, {"date": "2026-02-17", "start": "08:01", "end": "10:02", "duration": 120.3}, {"date": "2026-02-17", "start": "10:26", "end": "12:36", "duration": 130.8}, {"date": "2026-02-17", "start": "13:32", "end": "14:03", "duration": 31.2}, {"date": "2026-02-17", "start": "14:28", "end": "15:52", "duration": 84.0}, {"date": "2026-02-17", "start": "16:33", "end": "16:59", "duration": 25.6}, {"date": "2026-02-17", "start": "17:16", "end": "17:45", "duration": 29.2}, {"date": "2026-02-18", "start": "15:16", "end": "16:11", "duration": 55.6}, {"date": "2026-02-19", "start": "07:08", "end": "12:58", "duration": 350.7}, {"date": "2026-02-19", "start": "13:46", "end": "14:07", "duration": 20.9}, {"date": "2026-02-19", "start": "14:25", "end": "15:27", "duration": 61.6}, {"date": "2026-02-20", "start": "08:55", "end": "13:20", "duration": 265.5}, {"date": "2026-02-20", "start": "13:59", "end": "14:22", "duration": 22.8}, {"date": "2026-02-20", "start": "15:15", "end": "15:48", "duration": 32.7}, {"date": "2026-02-20", "start": "16:01", "end": "16:24", "duration": 22.5}, {"date": "2026-02-23", "start": "13:32", "end": "13:54", "duration": 22.3}, {"date": "2026-02-23", "start": "14:47", "end": "15:11", "duration": 24.3}, {"date": "2026-02-23", "start": "15:23", "end": "16:25", "duration": 62.7}, {"date": "2026-02-23", "start": "16:57", "end": "17:30", "duration": 32.7}, {"date": "2026-02-24", "start": "13:58", "end": "14:21", "duration": 22.3}, {"date": "2026-02-25", "start": "07:43", "end": "12:06", "duration": 263.4}, {"date": "2026-02-25", "start": "12:06", "end": "12:36", "duration": 29.6}, {"date": "2026-02-25", "start": "13:00", "end": "13:32", "duration": 32.2}, {"date": "2026-02-25", "start": "15:08", "end": "15:54", "duration": 46.1}, {"date": "2026-02-25", "start": "16:15", "end": "17:12", "duration": 56.2}, {"date": "2026-02-26", "start": "07:49", "end": "08:58", "duration": 68.8}, {"date": "2026-02-26", "start": "09:38", "end": "15:07", "duration": 329.6}, {"date": "2026-02-26", "start": "16:40", "end": "17:05", "duration": 24.9}, {"date": "2026-02-27", "start": "11:24", "end": "12:58", "duration": 94.6}, {"date": "2026-02-27", "start": "13:44", "end": "15:16", "duration": 92.5}, {"date": "2026-02-27", "start": "15:29", "end": "16:18", "duration": 49.5}], "Shreya Patra": [{"date": "2026-02-02", "start": "08:55", "end": "09:29", "duration": 34.0}, {"date": "2026-02-02", "start": "10:44", "end": "11:07", "duration": 23.4}, {"date": "2026-02-02", "start": "11:12", "end": "14:09", "duration": 176.3}, {"date": "2026-02-02", "start": "14:23", "end": "14:59", "duration": 35.3}, {"date": "2026-02-03", "start": "15:40", "end": "16:17", "duration": 37.0}, {"date": "2026-02-04", "start": "05:45", "end": "06:33", "duration": 47.8}, {"date": "2026-02-04", "start": "06:36", "end": "08:41", "duration": 125.7}, {"date": "2026-02-04", "start": "08:45", "end": "15:46", "duration": 421.5}, {"date": "2026-02-04", "start": "15:46", "end": "16:08", "duration": 22.3}, {"date": "2026-02-05", "start": "15:46", "end": "16:15", "duration": 29.6}, {"date": "2026-02-05", "start": "17:18", "end": "17:39", "duration": 20.4}, {"date": "2026-02-06", "start": "16:03", "end": "16:24", "duration": 21.2}, {"date": "2026-02-06", "start": "16:27", "end": "17:08", "duration": 41.5}, {"date": "2026-02-10", "start": "08:39", "end": "13:31", "duration": 292.0}, {"date": "2026-02-11", "start": "09:27", "end": "15:17", "duration": 350.0}, {"date": "2026-02-11", "start": "15:18", "end": "15:59", "duration": 41.0}, {"date": "2026-02-11", "start": "16:19", "end": "16:41", "duration": 21.5}, {"date": "2026-02-12", "start": "07:22", "end": "17:59", "duration": 637.2}, {"date": "2026-02-17", "start": "08:05", "end": "13:58", "duration": 353.1}, {"date": "2026-02-17", "start": "13:58", "end": "15:02", "duration": 64.0}, {"date": "2026-02-17", "start": "15:44", "end": "16:18", "duration": 33.9}, {"date": "2026-02-18", "start": "08:39", "end": "09:02", "duration": 23.1}, {"date": "2026-02-18", "start": "09:02", "end": "15:16", "duration": 373.8}, {"date": "2026-02-18", "start": "15:34", "end": "16:58", "duration": 83.8}, {"date": "2026-02-19", "start": "14:43", "end": "15:26", "duration": 42.8}, {"date": "2026-02-19", "start": "16:11", "end": "16:34", "duration": 23.0}, {"date": "2026-02-20", "start": "16:28", "end": "16:56", "duration": 28.2}, {"date": "2026-02-24", "start": "16:39", "end": "17:08", "duration": 28.8}, {"date": "2026-02-25", "start": "15:48", "end": "16:16", "duration": 28.2}, {"date": "2026-02-25", "start": "16:16", "end": "16:54", "duration": 37.5}, {"date": "2026-02-25", "start": "17:24", "end": "19:04", "duration": 99.9}, {"date": "2026-02-26", "start": "13:48", "end": "16:31", "duration": 163.6}, {"date": "2026-02-26", "start": "17:03", "end": "17:26", "duration": 22.9}, {"date": "2026-02-27", "start": "08:28", "end": "08:53", "duration": 24.9}], "Smriti Mishra": [{"date": "2026-02-02", "start": "13:36", "end": "14:29", "duration": 52.1}, {"date": "2026-02-02", "start": "15:36", "end": "16:05", "duration": 28.7}, {"date": "2026-02-03", "start": "06:36", "end": "15:03", "duration": 506.2}, {"date": "2026-02-03", "start": "15:23", "end": "15:45", "duration": 21.9}, {"date": "2026-02-04", "start": "09:24", "end": "16:10", "duration": 405.9}, {"date": "2026-02-09", "start": "13:54", "end": "16:04", "duration": 130.4}, {"date": "2026-02-10", "start": "15:03", "end": "15:26", "duration": 23.4}, {"date": "2026-02-10", "start": "15:39", "end": "16:09", "duration": 29.5}, {"date": "2026-02-11", "start": "09:24", "end": "14:54", "duration": 329.6}, {"date": "2026-02-11", "start": "16:17", "end": "16:46", "duration": 29.7}, {"date": "2026-02-12", "start": "16:35", "end": "17:00", "duration": 25.4}, {"date": "2026-02-13", "start": "07:57", "end": "15:29", "duration": 451.5}, {"date": "2026-02-13", "start": "16:09", "end": "16:46", "duration": 37.5}, {"date": "2026-02-18", "start": "06:00", "end": "09:03", "duration": 183.6}, {"date": "2026-02-18", "start": "09:03", "end": "13:49", "duration": 286.3}, {"date": "2026-02-18", "start": "14:18", "end": "15:17", "duration": 58.5}, {"date": "2026-02-19", "start": "14:43", "end": "15:32", "duration": 49.0}, {"date": "2026-02-20", "start": "08:00", "end": "14:26", "duration": 386.3}, {"date": "2026-02-20", "start": "14:49", "end": "15:29", "duration": 40.0}, {"date": "2026-02-23", "start": "14:30", "end": "15:34", "duration": 64.6}, {"date": "2026-02-24", "start": "11:22", "end": "12:00", "duration": 38.2}, {"date": "2026-02-24", "start": "12:06", "end": "12:51", "duration": 45.8}, {"date": "2026-02-24", "start": "12:51", "end": "14:52", "duration": 121.0}, {"date": "2026-02-26", "start": "09:30", "end": "13:37", "duration": 246.9}, {"date": "2026-02-26", "start": "13:46", "end": "14:56", "duration": 69.9}, {"date": "2026-02-26", "start": "16:42", "end": "17:05", "duration": 22.8}, {"date": "2026-02-27", "start": "08:31", "end": "14:21", "duration": 349.7}, {"date": "2026-02-27", "start": "14:30", "end": "15:13", "duration": 43.3}, {"date": "2026-02-27", "start": "16:10", "end": "16:37", "duration": 26.6}], "Harsh Singh_bad_days": ["2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27"], "ISHITA PATNAIK_bad_days": ["2026-02-02", "2026-02-03", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-17"], "Ishika Dubey_bad_days": ["2026-02-02", "2026-02-04", "2026-02-05", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-17", "2026-02-18", "2026-02-19"], "Mayank Rajput_bad_days": ["2026-02-13", "2026-02-17", "2026-02-20", "2026-02-25", "2026-02-26"], "Rajkumar Mallick_bad_days": ["2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27"], "Ranita Tripathy_bad_days": ["2026-02-02", "2026-02-05", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27"], "Sankalp Rout_bad_days": ["2026-02-02", "2026-02-03", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-11", "2026-02-12", "2026-02-17", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-25", "2026-02-26", "2026-02-27"], "Shreya Patra_bad_days": ["2026-02-02", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-11", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-25", "2026-02-26"], "Smriti Mishra_bad_days": ["2026-02-02", "2026-02-03", "2026-02-10", "2026-02-11", "2026-02-13", "2026-02-18", "2026-02-20", "2026-02-24", "2026-02-26", "2026-02-27"]}, "insights": {"section1": {"standout": "Ranita Tripathy leads the team with 121.6 calls/day and the highest target hit rate at 61.1%. Ranita Tripathy hit 11/18 days.", "needs_improvement": "Shreya Patra averages 87.3 calls/day with a 16.7% target hit rate \u2014 only 3 of 18 days at 120+."}, "section3": "Clear split: Harsh Singh, Ishika Dubey, Ranita Tripathy work substantially in W1 (morning ET). ISHITA PATNAIK, Mayank Rajput, Sankalp Rout, Shreya Patra, Smriti Mishra work almost exclusively in W2 (afternoon ET). This is likely driven by IST shift scheduling \u2014 morning ET maps to evening IST, afternoon ET maps to night IST.", "section4": "Harsh Singh loses an estimated 327.0 potential calls/day to excessive breaks (70 breaks over 15 min across the period). Ranita Tripathy is the most efficient with 89.1 estimated calls lost/day.", "section6": "Ranita Tripathy operates closest to capacity \u2014 natural pacing of 93.0s gives a realistic max of 194 calls, and they average 121.6. Shreya Patra has the largest gap: pacing allows 486 calls but averages only 87.3.", "reps": {"Harsh Singh": {"good": ["Trending up: last week averaged 123.4 vs period avg of 113.4"], "bad": ["Target hit rate is only 47.1% (8/17 days)", "Averages 113.4 calls/day \u2014 close but below the 120 target", "Loses ~327.0 potential calls/day to breaks over 15 min", "W2 participation is low: only 1 days with 40+ calls in the afternoon window"], "action": "Reduce break length \u2014 even cutting excessive breaks by half would add significant daily volume."}, "ISHITA PATNAIK": {"good": [], "bad": ["Target hit rate is only 38.9% (7/18 days)", "Averages 107.8 calls/day \u2014 close but below the 120 target", "Loses ~194.5 potential calls/day to breaks over 15 min", "Connect rate is low at 57.1% \u2014 could indicate list quality issues or call timing"], "action": "Reduce break length \u2014 even cutting excessive breaks by half would add significant daily volume."}, "Ishika Dubey": {"good": ["Hits target 57.1% of days (8/14)", "Trending up: last week averaged 111.6 vs period avg of 102.5", "Strong connect rate at 84.9%"], "bad": ["Averages 102.5 calls/day \u2014 close but below the 120 target", "Loses ~195.5 potential calls/day to breaks over 15 min"], "action": "Reduce break length \u2014 even cutting excessive breaks by half would add significant daily volume."}, "Mayank Rajput": {"good": ["Hits target 55.6% of days (10/18)", "Trending up: last week averaged 130.0 vs period avg of 109.9", "Strong connect rate at 82.9%"], "bad": ["Averages 109.9 calls/day \u2014 close but below the 120 target", "Loses ~185.7 potential calls/day to breaks over 15 min"], "action": "Reduce break length \u2014 even cutting excessive breaks by half would add significant daily volume."}, "Rajkumar Mallick": {"good": ["Strong connect rate at 86.1%"], "bad": ["Target hit rate is only 36.8% (7/19 days)", "Averages 100.8 calls/day \u2014 close but below the 120 target", "Loses ~165.5 potential calls/day to breaks over 15 min"], "action": "Reduce break length \u2014 even cutting excessive breaks by half would add significant daily volume."}, "Ranita Tripathy": {"good": ["Hits target 61.1% of days (11/18)", "Averages 121.6 calls/day, above the 120 target", "Trending up: last week averaged 130.4 vs period avg of 121.6", "Strong connect rate at 80.2%"], "bad": [], "action": "Maintain current performance and mentor teammates."}, "Sankalp Rout": {"good": [], "bad": ["Target hit rate is only 10.5% (2/19 days)", "Averages only 92.4 calls/day, well below the 120 target", "Loses ~288.1 potential calls/day to breaks over 15 min"], "action": "Reduce break length \u2014 even cutting excessive breaks by half would add significant daily volume."}, "Shreya Patra": {"good": ["Trending up: last week averaged 95.2 vs period avg of 87.3"], "bad": ["Target hit rate is only 16.7% (3/18 days)", "Averages only 87.3 calls/day, well below the 120 target", "Loses ~299.0 potential calls/day to breaks over 15 min", "Connect rate is low at 62.3% \u2014 could indicate list quality issues or call timing"], "action": "Reduce break length \u2014 even cutting excessive breaks by half would add significant daily volume."}, "Smriti Mishra": {"good": ["Trending up: last week averaged 122.2 vs period avg of 111.2"], "bad": ["Target hit rate is only 38.9% (7/18 days)", "Averages 111.2 calls/day \u2014 close but below the 120 target", "Loses ~279.6 potential calls/day to breaks over 15 min"], "action": "Reduce break length \u2014 even cutting excessive breaks by half would add significant daily volume."}}}};
+
+Chart.register(ChartDataLabels);
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.font.size = 11;
+Chart.defaults.plugins.datalabels.display = false; // default off, enable per chart
+
+const AGENTS = D.agents;
+const COLORS = D.colors;
+const DATES = D.dates;
+
+// ========= SECTION 1: Stat Cards =========
+(function() {
+  const container = document.getElementById('stat-cards');
+  AGENTS.forEach(agent => {
+    const s = D.stats[agent];
+    const color = COLORS[agent];
+    container.innerHTML += `
+      <div class="stat-card" style="border-top: 3px solid ${color}">
+        <div class="label">${agent}</div>
+        <div class="value mono">${s.avg_calls}</div>
+        <div class="sub">calls/day avg</div>
+        <div style="margin-top:8px;font-size:12px;color:#666;">
+          <span class="mono">${s.total_calls}</span> total · <span class="mono">${s.days_worked}</span> days · 
+          <span class="mono" style="color:${s.target_hit_rate >= 50 ? '#2A9D8F' : '#E63946'}">${s.days_hit}/${s.days_worked}</span> hit (${s.target_hit_rate}%)
+        </div>
+      </div>`;
+  });
+  
+  // Insight
+  document.getElementById('insight1').innerHTML = `
+    <strong>Standout:</strong> <span class="good">${D.insights.section1.standout}</span><br>
+    <strong>Needs improvement:</strong> <span class="bad">${D.insights.section1.needs_improvement}</span>`;
+})();
+
+// ========= SECTION 1: Daily Calls Chart =========
+(function() {
+  const datasets = AGENTS.map(agent => ({
+    label: agent,
+    data: D.daily_calls[agent],
+    borderColor: COLORS[agent],
+    backgroundColor: COLORS[agent] + '20',
+    borderWidth: 2,
+    pointRadius: 3,
+    pointHoverRadius: 5,
+    tension: 0.3,
+    spanGaps: false,
+  }));
+  
+  // Add target line
+  datasets.push({
+    label: 'Target (120)',
+    data: DATES.map(() => 120),
+    borderColor: '#999',
+    borderDash: [6, 4],
+    borderWidth: 1.5,
+    pointRadius: 0,
+    fill: false,
+  });
+  
+  new Chart(document.getElementById('dailyCallsChart'), {
+    type: 'line',
+    data: { labels: DATES.map(d => d.slice(5)), datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } },
+        datalabels: { display: false },
+      },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#f0efec' }, title: { display: true, text: 'Calls' } },
+        x: { grid: { display: false } },
+      }
+    }
+  });
+})();
+
+// ========= SECTION 2: Comparison Table =========
+(function() {
+  const metrics = [
+    ['avg_calls', 'Avg Calls/Day', true, 'How many outbound calls per working day on average'],
+    ['target_hit_rate', 'Target Hit Rate %', true, 'Percentage of days they made 120+ calls'],
+    ['median_pacing', 'Pacing (sec)', false, 'Median seconds between consecutive calls — lower means faster dialing'],
+    ['avg_break_per_day', 'Break Time/Day (min)', false, 'Total minutes of breaks >15 min per day — lower is better'],
+    ['w2_avg', 'W2 Calls/Day', true, 'Average calls in the 2–6 PM ET window (including zero-days)'],
+    ['w2_days_skipped', 'W2 Days Skipped', false, 'Days with zero calls in W2 — should be 0 since W2 is mandatory'],
+    ['connect_rate', 'Connect Rate %', true, 'Percentage of calls with "Completed" status — higher means more conversations'],
+    ['last_week_avg', 'Last Week Avg', true, 'Average calls/day in the last 5 working days — shows recent trend'],
+  ];
+  
+  let html = '<thead><tr><th>Metric</th>';
+  AGENTS.forEach(a => { html += `<th style="color:${COLORS[a]}">${a.split(' ')[0]}</th>`; });
+  html += '<th style="min-width:200px">In Simple Words</th></tr></thead><tbody>';
+  
+  metrics.forEach(([key, label, higherBetter, explanation]) => {
+    const values = AGENTS.map(a => D.comparison[a][key]);
+    const best = higherBetter ? Math.max(...values) : Math.min(...values);
+    const worst = higherBetter ? Math.min(...values) : Math.max(...values);
+    
+    html += `<tr><td style="font-weight:600;white-space:nowrap">${label}</td>`;
+    AGENTS.forEach(a => {
+      const v = D.comparison[a][key];
+      let cls = '';
+      if (v === best) cls = 'best';
+      else if (v === worst) cls = 'worst';
+      html += `<td class="${cls} mono" style="text-align:center">${v}</td>`;
+    });
+    html += `<td style="font-size:11px;color:#888">${explanation}</td></tr>`;
+  });
+  
+  html += '</tbody>';
+  document.getElementById('comparisonTable').innerHTML = html;
+})();
+
+// ========= SECTION 3: W1 vs W2 Chart & Table =========
+(function() {
+  const w1Data = AGENTS.map(a => D.w1w2[a].w1_daily);
+  const w2Data = AGENTS.map(a => D.w1w2[a].w2_daily);
+  
+  new Chart(document.getElementById('w1w2Chart'), {
+    type: 'bar',
+    data: {
+      labels: AGENTS.map(a => a.split(' ')[0]),
+      datasets: [
+        { label: 'W1 (8 AM–12 PM)', data: w1Data, backgroundColor: '#457B9D', borderRadius: 4 },
+        { label: 'W2 (2 PM–6 PM)', data: w2Data, backgroundColor: '#E9C46A', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' },
+        datalabels: {
+          display: true,
+          anchor: 'end',
+          align: 'top',
+          font: { family: "'JetBrains Mono'", size: 10, weight: 600 },
+          formatter: v => v.toFixed(0),
+        }
+      },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#f0efec' }, title: { display: true, text: 'Avg Calls/Day' } },
+        x: { grid: { display: false } },
+      }
+    }
+  });
+  
+  // Table
+  let html = '<thead><tr><th>Rep</th><th>W1/Day</th><th>W2/Day</th><th>Expected W2</th><th>Gap</th><th>W2 Active Days (≥40)</th><th>Days Worked</th></tr></thead><tbody>';
+  AGENTS.forEach(a => {
+    const w = D.w1w2[a];
+    html += `<tr>
+      <td style="font-weight:600;color:${COLORS[a]}">${a}</td>
+      <td class="mono">${w.w1_daily}</td>
+      <td class="mono">${w.w2_daily}</td>
+      <td class="mono">${w.expected_w2}</td>
+      <td class="mono" style="color:${w.gap >= 0 ? '#2A9D8F' : '#E63946'}">${w.gap > 0 ? '+' : ''}${w.gap}</td>
+      <td class="mono">${w.w2_active_days}/${w.days_worked}</td>
+      <td class="mono">${w.days_worked}</td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('w1w2Table').innerHTML = html;
+  
+  document.getElementById('insight3').innerHTML = `<strong>Observation:</strong> ${D.insights.section3}`;
+})();
+
+// ========= SECTION 4: Break Patterns =========
+(function() {
+  // Big number cards
+  const container = document.getElementById('break-cards');
+  AGENTS.forEach(agent => {
+    const b = D.breaks[agent];
+    const color = b.calls_lost_per_day > 200 ? '#E63946' : b.calls_lost_per_day > 100 ? '#E9C46A' : '#2A9D8F';
+    container.innerHTML += `
+      <div class="stat-card" style="border-top: 3px solid ${COLORS[agent]}">
+        <div class="label">${agent}</div>
+        <div class="value mono" style="color:${color}">~${Math.round(b.calls_lost_per_day)}</div>
+        <div class="sub">est. calls lost/day to breaks</div>
+        <div style="margin-top:6px;font-size:11px;color:#888;">
+          ${b.total_breaks} breaks &gt; 15 min · ${b.total_excess_min} excess min total
+        </div>
+      </div>`;
+  });
+  
+  // Break bucket chart
+  new Chart(document.getElementById('breakBucketChart'), {
+    type: 'bar',
+    data: {
+      labels: AGENTS.map(a => a.split(' ')[0]),
+      datasets: [
+        { label: '15–20 min', data: AGENTS.map(a => D.breaks[a].under_20), backgroundColor: '#E9C46A', borderRadius: 4 },
+        { label: '20–45 min', data: AGENTS.map(a => D.breaks[a].bw_20_45), backgroundColor: '#F4A261', borderRadius: 4 },
+        { label: '45+ min', data: AGENTS.map(a => D.breaks[a].over_45), backgroundColor: '#E63946', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' },
+        datalabels: {
+          display: true,
+          anchor: 'end',
+          align: 'top',
+          font: { family: "'JetBrains Mono'", size: 10 },
+          formatter: v => v > 0 ? v : '',
+        }
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false } },
+        y: { stacked: true, beginAtZero: true, grid: { color: '#f0efec' }, title: { display: true, text: 'Number of Breaks' } },
+      }
+    }
+  });
+  
+  // Cumulative break chart
+  const cumDatasets = AGENTS.map(agent => {
+    const cum = D.cumulative_breaks[agent];
+    return {
+      label: agent,
+      data: cum.dates.map((d, i) => ({ x: d.slice(5), y: cum.values[i] })),
+      borderColor: COLORS[agent],
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 2,
+      tension: 0.3,
+    };
+  });
+  
+  new Chart(document.getElementById('cumulativeBreakChart'), {
+    type: 'line',
+    data: { datasets: cumDatasets },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12 } },
+        datalabels: { display: false },
+      },
+      scales: {
+        x: { type: 'category', labels: DATES.map(d => d.slice(5)), grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: '#f0efec' }, title: { display: true, text: 'Cumulative Excess Min' } },
+      }
+    }
+  });
+  
+  // Break log tabs
+  const tabContainer = document.getElementById('breakTabs');
+  const panelContainer = document.getElementById('breakPanels');
+  
+  AGENTS.forEach((agent, i) => {
+    tabContainer.innerHTML += `<button class="tab-btn ${i === 0 ? 'active' : ''}" onclick="showBreakTab(${i})" style="border-color:${COLORS[agent]};${i === 0 ? 'background:' + COLORS[agent] + ';color:#fff;border-color:' + COLORS[agent] : ''}">${agent.split(' ')[0]}</button>`;
+    
+    const breaks = D.break_log[agent].filter(b => b.duration > 20);
+    const badDays = D.break_log[agent + '_bad_days'] || [];
+    
+    let panelHtml = `<div class="tab-panel ${i === 0 ? 'active' : ''}" id="breakPanel${i}">`;
+    if (breaks.length === 0) {
+      panelHtml += '<p style="color:#888;font-size:13px;">No breaks exceeding 20 minutes.</p>';
+    } else {
+      breaks.forEach(b => {
+        const isBadDay = badDays.includes(b.date);
+        const severe = b.duration > 45;
+        panelHtml += `<div class="break-entry">
+          <span class="date">${b.date.slice(5)}</span>
+          <span class="time">${b.start} → ${b.end}</span>
+          <span class="dur ${severe ? 'severe' : ''}">${Math.round(b.duration)}m</span>
+          ${isBadDay ? '<span class="bad-day-badge">2+ breaks</span>' : ''}
+        </div>`;
+      });
+    }
+    panelHtml += '</div>';
+    panelContainer.innerHTML += panelHtml;
+  });
+  
+  document.getElementById('insight4').innerHTML = `<strong>Key finding:</strong> <span class="bad">${D.insights.section4}</span>`;
+})();
+
+function showBreakTab(idx) {
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === idx);
+    if (i === idx) {
+      btn.style.background = COLORS[AGENTS[i]];
+      btn.style.color = '#fff';
+      btn.style.borderColor = COLORS[AGENTS[i]];
+    } else {
+      btn.style.background = '#fff';
+      btn.style.color = '#1a1a1a';
+    }
+  });
+  document.querySelectorAll('.tab-panel').forEach((p, i) => {
+    p.classList.toggle('active', i === idx);
+  });
+}
+
+// ========= SECTION 5: Heatmap =========
+(function() {
+  const slots = D.heatmap_slots;
+  const container = document.getElementById('heatmapContainer');
+  
+  const cols = slots.length + 1;
+  let html = `<div class="heatmap-grid" style="grid-template-columns: 130px repeat(${slots.length}, 1fr);">`;
+  
+  // Header row
+  html += '<div></div>';
+  slots.forEach(s => {
+    const h = parseInt(s.split(':')[0]);
+    const isW1 = h >= 8 && h < 12;
+    const isW2 = h >= 14 && h < 18;
+    const bg = isW1 ? '#457B9D15' : isW2 ? '#E9C46A15' : '';
+    html += `<div style="font-size:9px;text-align:center;color:#999;background:${bg};padding:2px 0;border-radius:3px 3px 0 0;font-family:'JetBrains Mono',monospace;">${s.split(':')[0] % 12 || 12}${parseInt(s.split(':')[0]) >= 12 ? 'p' : 'a'}</div>`;
+  });
+  
+  // Agent rows
+  AGENTS.forEach(agent => {
+    html += `<div class="heatmap-label" style="color:${COLORS[agent]};font-weight:600;font-size:11px;">${agent.split(' ')[0]}</div>`;
+    const maxVal = Math.max(...D.heatmap[agent], 1);
+    D.heatmap[agent].forEach((val, i) => {
+      const h = parseInt(slots[i].split(':')[0]);
+      const isW1 = h >= 8 && h < 12;
+      const isW2 = h >= 14 && h < 18;
+      const intensity = val / maxVal;
+      const baseColor = COLORS[agent];
+      const alpha = Math.max(0.05, intensity * 0.9);
+      html += `<div class="heatmap-cell" style="background:${baseColor};opacity:${val > 0 ? Math.max(0.15, alpha) : 0.05};${(isW1 || isW2) ? 'border-bottom:2px solid ' + (isW1 ? '#457B9D' : '#E9C46A') : ''}" title="${agent} ${slots[i]}: ${val} calls/day avg">${val >= 1 ? val.toFixed(0) : ''}</div>`;
+    });
+  });
+  
+  html += '</div>';
+  html += '<div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:#888;"><span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:4px;background:#457B9D;border-radius:2px;"></span> W1 (8–12 ET)</span><span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:4px;background:#E9C46A;border-radius:2px;"></span> W2 (14–18 ET)</span></div>';
+  container.innerHTML = html;
+  
+  document.getElementById('insight5').innerHTML = `<strong>Observation:</strong> The heatmap confirms distinct shift patterns. Harsh Singh and Ranita Tripathy concentrate activity in the W1 zone (morning ET / evening IST). Mayank, Smriti, Ishita, and others peak in W2 (afternoon-evening ET / late night IST). Ranita shows the most balanced spread across both windows.`;
+})();
+
+// ========= SECTION 6: Capacity Table =========
+(function() {
+  let html = '<thead><tr><th>Rep</th><th>Natural Pacing (sec)</th><th>Realistic Max (~5h dialing)</th><th>Current Avg</th><th>Gap</th></tr></thead><tbody>';
+  AGENTS.forEach(a => {
+    const c = D.capacity[a];
+    html += `<tr>
+      <td style="font-weight:600;color:${COLORS[a]}">${a}</td>
+      <td class="mono">${c.pacing}</td>
+      <td class="mono">${c.realistic_max}</td>
+      <td class="mono">${c.current_avg}</td>
+      <td class="mono" style="color:${c.gap > 100 ? '#E63946' : '#E9C46A'}">${c.gap > 0 ? '+' : ''}${c.gap} uncaptured</td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('capacityTable').innerHTML = html;
+  
+  document.getElementById('insight6').innerHTML = `<strong>Key finding:</strong> ${D.insights.section6}<br><span style="font-size:12px;color:#888;">Note: "Realistic max" assumes 5 hours of continuous dialing in a 6-hour window. The gap shows how many additional calls are possible if break time is reduced.</span>`;
+})();
+
+// ========= SECTION 7: Per-Rep Insights =========
+(function() {
+  const container = document.getElementById('repInsights');
+  AGENTS.forEach(agent => {
+    const ri = D.insights.reps[agent];
+    let html = `<div class="rep-insight">
+      <div class="rep-name"><span class="dot" style="background:${COLORS[agent]}"></span>${agent}</div>`;
+    
+    if (ri.good.length > 0) {
+      html += '<ul>';
+      ri.good.forEach(g => { html += `<li class="good-text">${g}</li>`; });
+      html += '</ul>';
+    }
+    if (ri.bad.length > 0) {
+      html += '<ul>';
+      ri.bad.forEach(b => { html += `<li class="bad-text">${b}</li>`; });
+      html += '</ul>';
+    }
+    html += `<div class="action">→ ${ri.action}</div></div>`;
+    container.innerHTML += html;
+  });
+})();
+
+// ========= SECTION 8: Scorecard =========
+(function() {
+  const grid = document.getElementById('scorecardGrid');
+  const metricLabels = ['Target', 'Output', 'Breaks', 'W2', 'Consist.', 'Trend'];
+  const metricKeys = ['hitting_target', 'daily_output', 'break_efficiency', 'w2_output', 'consistency', 'trend'];
+  
+  // Sort by overall score descending
+  const sorted = [...AGENTS].sort((a, b) => D.scorecard[b].overall - D.scorecard[a].overall);
+  
+  sorted.forEach(agent => {
+    const sc = D.scorecard[agent];
+    const overallColor = sc.overall >= 70 ? '#2A9D8F' : sc.overall >= 50 ? '#E9C46A' : '#E63946';
+    
+    let html = `<div class="scorecard-card" style="border-top:3px solid ${COLORS[agent]}">
+      <div class="agent-name">${agent}</div>
+      <div class="overall" style="color:${overallColor}">${sc.overall.toFixed(0)}</div>`;
+    
+    metricKeys.forEach((key, i) => {
+      const v = sc[key];
+      const barColor = v >= 70 ? 'score-green' : v >= 45 ? 'score-amber' : 'score-red';
+      html += `<div class="metric-row">
+        <span class="metric-label">${metricLabels[i]}</span>
+        <div class="score-bar"><div class="score-bar-fill ${barColor}" style="width:${v}%"></div></div>
+        <span class="mono" style="font-size:10px;width:22px;text-align:right">${v}</span>
+      </div>`;
+    });
+    
+    html += '</div>';
+    grid.innerHTML += html;
+  });
+})();
+
+// ========= SECTION 9: Radar Chart =========
+(function() {
+  const metricLabels = ['Hitting Target', 'Daily Output', 'Break Efficiency', 'W2 Output', 'Consistency', 'Trend'];
+  const metricKeys = ['hitting_target', 'daily_output', 'break_efficiency', 'w2_output', 'consistency', 'trend'];
+  
+  const datasets = AGENTS.map(agent => ({
+    label: agent,
+    data: metricKeys.map(k => D.scorecard[agent][k]),
+    borderColor: COLORS[agent],
+    backgroundColor: COLORS[agent] + '20',
+    borderWidth: 2,
+    pointRadius: 3,
+  }));
+  
+  new Chart(document.getElementById('radarChart'), {
+    type: 'radar',
+    data: { labels: metricLabels, datasets },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8 } },
+        datalabels: { display: false },
+      },
+      scales: {
+        r: {
+          beginAtZero: true,
+          max: 100,
+          ticks: { stepSize: 25, font: { size: 10 } },
+          grid: { color: '#e8e7e4' },
+          angleLines: { color: '#e8e7e4' },
+          pointLabels: { font: { size: 11, weight: 500 } },
+        }
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>
